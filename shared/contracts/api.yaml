@@ -1,0 +1,91 @@
+openapi: 3.0.3
+info:
+  title: Testimonial SaaS API (Phase 1 — Foundation)
+  version: 0.1.0
+paths:
+  /api/auth/signup:
+    post:
+      summary: Sign up (PRD §4)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string }
+                email: { type: string }
+                password: { type: string, minLength: 8 }
+      responses:
+        '200': { description: '{data:{user}}' }
+  /api/auth/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        '200': { description: '{data:{user}}' }
+  /api/auth/logout:
+    post: { summary: Logout, responses: { '200': { description: ok } } }
+  /api/auth/me:
+    get: { summary: Current user + plan limits, responses: { '200': { description: '{data:{user:{id,email,name,plan,limits}}}' } } }
+  /api/auth/request-reset:
+    post:
+      summary: Password reset request (always 200)
+      responses: { '200': { description: ok } }
+  # Phase 2 — Spaces (PRD §6-8)
+  /api/spaces:
+    get: { summary: List own active spaces }
+    post: { summary: Create space (enforces 3/25 limit server-side) }
+  /api/spaces/{id}:
+    get: { summary: Get own space with fields }
+    put: { summary: Update name/subtitle/slug/theme/rating/fields }
+    delete: { summary: Archive space }
+  /api/public/s/{slug}:
+    get: { summary: Public space branding + enabled fields, no auth }
+  /api/themes:
+    get: { summary: 8 predefined themes }
+  # Phase 3 — Testimonials (PRD §9-12)
+  /api/public/s/{slug}/submit:
+    post: { summary: Public submit, default pending; honeypot+ratelimit+2000 chars+consent required }
+  /api/testimonials:
+    get: { summary: Inbox list; query status=all|pending|published|hidden|favorites + space_id }
+  /api/testimonials/{id}/publish:
+    post: { summary: Moderation publish }
+  /api/testimonials/{id}/hide:
+    post: { summary: Moderation hide }
+  /api/testimonials/{id}/favorite:
+    post: { summary: Toggle favorite (favorites sort first) }
+  /api/testimonials/{id}:
+    delete: { summary: Permanent delete }
+  # Phase 4 — Dashboard (PRD §5)
+  /api/dashboard/stats:
+    get: { summary: Totals + per-day series; query range=7d|30d|90d|custom&from=YYYY-MM-DD&to=YYYY-MM-DD }
+  # Phase 5 — Embeds (PRD §13-15)
+  /api/embeds:
+    get: { summary: List own embeds }
+    post: { summary: Create embed for own space }
+  /api/embeds/{id}:
+    get: { summary: Get own embed + published preview }
+    put: { summary: Update config }
+    delete: { summary: Delete embed }
+  /api/public/embeds/{public_key}:
+    get: { summary: Public widget data — published only, no private fields }
+  # Phase 6 — Billing (PRD §16-17)
+  /api/billing/status:
+    get: { summary: Plan + subscription + usage + stripe_configured }
+  /api/billing/checkout:
+    post: { summary: Create Stripe Checkout session -> {checkout_url} }
+  /api/billing/portal:
+    post: { summary: Create Stripe customer portal session -> {portal_url} }
+  /api/stripe/webhook:
+    post: { summary: Stripe events (verified signature); sole writer of plan }

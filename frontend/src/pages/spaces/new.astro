@@ -1,0 +1,32 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+const cookie = Astro.request.headers.get('cookie') ?? '';
+const ODOO = process.env.ODOO_URL ?? 'http://localhost:8069';
+let user = null; let themes: Record<string, any> = {};
+try {
+  const me = await fetch(`${ODOO}/api/auth/me`, { headers: { Cookie: cookie } });
+  const mj = await me.json();
+  if (!me.ok) return Astro.redirect('/login');
+  user = mj.data.user;
+  const t = await fetch(`${ODOO}/api/themes`);
+  const tj = await t.json();
+  if (t.ok) themes = tj.data.themes;
+} catch {}
+const error = Astro.url.searchParams.get('error');
+---
+<BaseLayout title="New space" user={user}>
+  <form method="POST" action="/api/spaces/create" class="mx-auto max-w-lg space-y-3 rounded border bg-white p-6">
+    <h1 class="text-xl font-bold">New space</h1>
+    {error && <p class="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+    <label class="block text-sm">Name*<input name="name" required class="mt-1 w-full rounded border px-3 py-2" placeholder="What our customers say" /></label>
+    <label class="block text-sm">Subtitle<textarea name="subtitle" class="mt-1 w-full rounded border px-3 py-2" placeholder="Tell us about your experience working with Acme." /></label>
+    <label class="block text-sm">URL slug (optional)<input name="slug" class="mt-1 w-full rounded border px-3 py-2" placeholder="acme-reviews" /></label>
+    <label class="block text-sm">Theme
+      <select name="theme" class="mt-1 w-full rounded border px-3 py-2">
+        {Object.entries(themes).map(([k, v]: any) => <option value={k}>{v.label}</option>)}
+      </select>
+    </label>
+    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="rating_enabled" checked value="1" /> Enable 1–5 star rating</label>
+    <button class="w-full rounded bg-black py-2 text-white">Create space</button>
+  </form>
+</BaseLayout>

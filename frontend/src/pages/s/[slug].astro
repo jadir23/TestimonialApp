@@ -1,0 +1,49 @@
+---
+const { slug } = Astro.params;
+const ODOO = process.env.ODOO_URL ?? 'http://localhost:8069';
+let space: any = null;
+try {
+  const r = await fetch(`${ODOO}/api/public/s/${slug}`);
+  const j = await r.json();
+  if (r.ok) space = j.data.space;
+} catch {}
+if (!space) return new Response('Space not found', { status: 404 });
+const cfg = space.theme_config ?? {};
+const submitError = Astro.url.searchParams.get('error');
+import '../../styles/global.css';
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>{space.name}</title>
+</head>
+<body style={`background:${cfg.bg ?? '#fff'};font-family:${cfg.font ?? 'system-ui'}`}>
+  <main class="mx-auto max-w-xl px-4 py-12">
+    <div class="rounded-xl p-8 shadow" style={`background:${cfg.card ?? '#fff'}`}>
+      <h1 class="text-2xl font-bold" style={`color:${cfg.accent}`}>{space.name}</h1>
+      <p class="mt-1 opacity-70">{space.subtitle}</p>
+      <form method="POST" action={`/api/public/submit?slug=${space.slug}`} class="mt-6 space-y-3" id="tform">
+        {submitError && <p class="rounded bg-red-50 p-2 text-sm text-red-700">{submitError}</p>}
+        <div class="grid gap-3">
+          <input name="name" required placeholder="Your name*" class="rounded border px-3 py-2" />
+          <input name="email" type="email" required placeholder="Email*" class="rounded border px-3 py-2" />
+          {space.fields.filter((f:any)=>f.field_type==='company_name').map((f:any) => <input name="company_name" placeholder={f.label + (f.required ? '*' : '')} required={f.required} class="rounded border px-3 py-2" />)}
+          {space.fields.filter((f:any)=>f.field_type==='job_title').map((f:any) => <input name="job_title" placeholder={f.label + (f.required ? '*' : '')} required={f.required} class="rounded border px-3 py-2" />)}
+          {space.fields.filter((f:any)=>!['company_name','job_title'].includes(f.field_type)).map((f:any) => <input name={f.field_type} placeholder={f.label + (f.required ? '*' : '')} required={f.required} class="rounded border px-3 py-2" />)}
+        </div>
+        {space.rating_enabled && (
+          <div class="flex gap-1 text-2xl" aria-label="Rating">
+            {[1,2,3,4,5].map((n) => <label><input type="radio" name="rating" value={n} class="peer hidden" /><span class="cursor-pointer peer-checked:opacity-100 opacity-40">⭐</span></label>)}
+          </div>
+        )}
+        <textarea name="content" required maxlength="2000" placeholder="Tell us about your experience..." class="w-full rounded border px-3 py-2" rows="4"></textarea>
+        <label class="flex items-start gap-2 text-xs"><input type="checkbox" name="consent" value="1" required class="mt-1" /><span>I give permission for this testimonial to be displayed publicly and shared on social media.</span></label>
+        <input type="text" name="website_url" style="display:none" tabindex="-1" autocomplete="off" /><!-- honeypot -->
+        <button class="w-full rounded py-2 text-white" style={`background:${cfg.accent ?? '#111'}`}>Submit testimonial</button>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

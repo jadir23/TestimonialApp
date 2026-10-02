@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-odoo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-odoo}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  odoo:
+    image: odoo:18
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "8069:8069"
+    environment:
+      HOST: db
+      USER: ${POSTGRES_USER:-odoo}
+      PASSWORD: ${POSTGRES_PASSWORD:-odoo}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PRICE_PRO: ${STRIPE_PRICE_PRO:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:4321}
+    volumes:
+      - ./backend/addons:/mnt/extra-addons
+      - ./backend/odoo.conf:/etc/odoo/odoo.conf
+      - odoo-data:/var/lib/odoo
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - odoo
+    ports:
+      - "4321:4321"
+    environment:
+      ODOO_URL: ${ODOO_URL:-http://odoo:8069}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:4321}
+      PORT: "4321"
+      HOST: "0.0.0.0"
+
+volumes:
+  pgdata:
+  odoo-data:

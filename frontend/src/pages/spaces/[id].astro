@@ -1,0 +1,32 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+const { id } = Astro.params;
+const cookie = Astro.request.headers.get('cookie') ?? '';
+const ODOO = process.env.ODOO_URL ?? 'http://localhost:8069';
+const APP = process.env.PUBLIC_APP_URL ?? '';
+let user = null; let space: any = null;
+try {
+  const me = await fetch(`${ODOO}/api/auth/me`, { headers: { Cookie: cookie } });
+  const mj = await me.json();
+  if (!me.ok) return Astro.redirect('/login');
+  user = mj.data.user;
+  const r = await fetch(`${ODOO}/api/spaces/${id}`, { headers: { Cookie: cookie } });
+  const j = await r.json();
+  if (r.ok) space = j.data.space; else return Astro.redirect('/spaces');
+} catch { return Astro.redirect('/spaces'); }
+---
+<BaseLayout title={space.name} user={user}>
+  <h1 class="text-2xl font-bold">{space.name}</h1>
+  <p class="text-gray-600">{space.subtitle}</p>
+  <div class="mt-3 flex items-center gap-2 rounded border bg-white p-3 text-sm">
+    <code class="flex-1">/s/{space.slug}</code>
+    <a href={`/s/${space.slug}`} class="rounded bg-black px-3 py-1 text-white">Open public page</a>
+    <a href={`/spaces/${space.id}/settings`} class="underline">Settings</a>
+  </div>
+  <h2 class="mt-6 font-bold">Submission fields</h2>
+  <ul class="mt-2 space-y-1 text-sm">
+    <li class="rounded border bg-white p-2">Name — required (default) · Email — required (default)</li>
+    {space.fields.map((f: any) => <li class="rounded border bg-white p-2">{f.label} ({f.field_type}) — {f.enabled ? 'enabled' : 'disabled'}{f.required ? ', required' : ''}</li>)}
+  </ul>
+  <p class="mt-4 text-sm text-gray-500">Rating: {space.rating_enabled ? 'enabled' : 'disabled'} · Theme: {space.theme}</p>
+</BaseLayout>

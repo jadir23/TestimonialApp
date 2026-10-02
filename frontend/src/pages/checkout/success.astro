@@ -1,0 +1,18 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+const cookie = Astro.request.headers.get('cookie') ?? '';
+const ODOO = process.env.ODOO_URL ?? 'http://localhost:8069';
+let user = null;
+try {
+  const me = await fetch(`${ODOO}/api/auth/me`, { headers: { Cookie: cookie } });
+  const mj = await me.json();
+  if (me.ok) user = mj.data.user;
+} catch {}
+---
+<BaseLayout title="Checkout success" user={user}>
+  <div class="mx-auto max-w-md rounded border bg-white p-8 text-center">
+    <div class="text-4xl">🎉</div>
+    <h1 class="mt-2 text-2xl font-bold">Payment successful</h1>
+    <p class="mt-1 text-sm text-gray-600">Your Pro subscription activates once the Stripe webhook confirms payment (usually within seconds — the success redirect alone never upgrades, per our security model). <a href="/billing?notice=success" class="underline">Check billing status</a>.</p>
+  </div>
+</BaseLayout>
