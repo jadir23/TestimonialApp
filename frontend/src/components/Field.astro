@@ -1,0 +1,38 @@
+---
+/** Labelled form field wrapper: label, control slot, optional hint/error. */
+interface Props {
+  label: string;
+  name?: string;
+  required?: boolean;
+  hint?: string;
+  error?: string;
+  /** Renders label for="id" so clicking it focuses the control. */
+  for?: string;
+}
+const { label, name, required, hint, error, for: forId } = Astro.props;
+const id = forId ?? name;
+---
+
+<div>
+  <label class="field-label" for={id}>
+    {label}
+    {required && <span class="text-danger" aria-hidden="true">*</span>}
+    {
+      !required && (
+        <span class="ml-1 text-xs font-normal text-fg-subtle">optional</span>
+      )
+    }
+  </label>
+  <slot />
+  {
+    error ? (
+      <p id={`${id}-error`} class="field-hint text-danger">
+        {error}
+      </p>
+    ) : hint ? (
+      <p id={`${id}-hint`} class="field-hint">
+        {hint}
+      </p>
+    ) : null
+  }
+</div>

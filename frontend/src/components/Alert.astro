@@ -1,0 +1,20 @@
+---
+/** Status/feedback banner. `type` maps to the alert-* component classes. */
+import Icon from './Icon.astro';
+
+interface Props {
+  type?: 'info' | 'success' | 'warning' | 'danger';
+  title?: string;
+}
+const { type = 'info', title } = Astro.props;
+const icon = { info: 'info', success: 'check', warning: 'warning', danger: 'warning' }[type];
+const role = type === 'danger' ? 'alert' : 'status';
+---
+
+<div class:list={['alert', `alert-${type}`]} role={role}>
+  <Icon name={icon} class="mt-0.5 size-4 shrink-0" />
+  <div class="min-w-0 flex-1">
+    {title && <p class="font-semibold">{title}</p>}
+    <div class={title ? 'mt-0.5' : ''}><slot /></div>
+  </div>
+</div>

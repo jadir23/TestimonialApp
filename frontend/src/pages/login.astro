@@ -1,14 +1,55 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
+import AuthLayout from '../layouts/AuthLayout.astro';
+import AuthCard from '../components/AuthCard.astro';
+import Alert from '../components/Alert.astro';
+import Field from '../components/Field.astro';
+
 const error = Astro.url.searchParams.get('error');
+const next = Astro.url.searchParams.get('next') ?? '/dashboard';
 ---
-<BaseLayout title="Login">
-  <form method="POST" action="/api/login" class="mx-auto max-w-sm space-y-3 rounded border bg-white p-6">
-    <h1 class="text-xl font-bold">Login</h1>
-    {error && <p class="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
-    <input name="email" type="email" required placeholder="Email" class="w-full rounded border px-3 py-2" />
-    <input name="password" type="password" required placeholder="Password" class="w-full rounded border px-3 py-2" />
-    <button class="w-full rounded bg-black py-2 text-white">Login</button>
-    <p class="text-sm"><a href="/forgot-password" class="underline">Forgot password?</a> · <a href="/register" class="underline">Sign up</a></p>
-  </form>
-</BaseLayout>
+
+<AuthLayout title="Sign in">
+  <AuthCard title="Welcome back" subtitle="Sign in to manage your testimonials.">
+    {error && <div class="mb-5"><Alert type="danger">{error}</Alert></div>}
+
+    <form method="POST" action="/api/login" class="card card-pad space-y-4">
+      <input type="hidden" name="next" value={next} />
+
+      <Field label="Email" name="email" required>
+        <input
+          id="email"
+          class="input"
+          type="email"
+          name="email"
+          required
+          autocomplete="email"
+          autofocus
+          placeholder="you@company.com"
+        />
+      </Field>
+
+      <Field label="Password" name="password" required>
+        <input
+          id="password"
+          class="input"
+          type="password"
+          name="password"
+          required
+          autocomplete="current-password"
+          placeholder="••••••••"
+        />
+      </Field>
+
+      <button type="submit" class="btn btn-primary btn-lg w-full">Sign in</button>
+
+      <p class="text-center text-sm text-fg-muted">
+        <a href="/forgot-password" class="link">Forgot your password?</a>
+      </p>
+    </form>
+
+    <p class="mt-6 text-center text-sm text-fg-muted">
+      New here?
+      <a href="/register" class="link">Create an account</a>
+    </p>
+  </AuthCard>
+</AuthLayout>

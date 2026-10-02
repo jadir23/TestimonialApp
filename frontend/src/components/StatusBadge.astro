@@ -1,0 +1,21 @@
+---
+import Icon from './Icon.astro';
+
+interface Props {
+  status: 'pending' | 'published' | 'hidden' | string;
+  class?: string;
+}
+const { status, class: className = '' } = Astro.props;
+
+const MAP: Record<string, { label: string; cls: string; icon: string }> = {
+  pending: { label: 'Pending', cls: 'badge-warning', icon: 'inbox' },
+  published: { label: 'Published', cls: 'badge-success', icon: 'check' },
+  hidden: { label: 'Hidden', cls: 'badge-neutral', icon: 'eyeOff' },
+};
+const s = MAP[status] ?? { label: status, cls: 'badge-neutral', icon: 'info' };
+---
+
+<span class:list={['badge', s.cls, className]}>
+  <Icon name={s.icon} class="size-3" />
+  {s.label}
+</span>

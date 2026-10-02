@@ -29,6 +29,29 @@ def _err(message, status=400):
     )
 
 
+def _authenticate(login, password):
+    """Log the current session in.
+
+    The db comes from ``request.db`` (resolved by Odoo), not
+    ``request.session.db``: for an anonymous visitor the session has no db
+    yet, and ``Registry(None)`` fails with "Access Denied".
+
+    Odoo 18 changed ``Session.authenticate`` to take a single ``credential``
+    dict; <=17 took ``(db, login, password)``. Support both so the addon is
+    not pinned to one image version.
+    """
+    db = request.db or request.session.db
+    # res.users._login() validates credentials on a *separate* cursor, so
+    # anything created earlier in this request (e.g. the signup user) must be
+    # committed first or the login cannot see it.
+    request.env.cr.commit()
+    credential = {'login': login, 'password': password, 'type': 'password'}
+    try:
+        return request.session.authenticate(db, credential)
+    except TypeError:
+        return request.session.authenticate(db, login, password)
+
+
 class AuthApiController(http.Controller):
     # ---------- SIGNUP ----------
     @http.route('/api/auth/signup', type='http', auth='public',
@@ -63,7 +86,7 @@ class AuthApiController(http.Controller):
             return _err(f'Could not create account: {e}', 400)
 
         # auto-login: establish session
-        request.session.authenticate(request.session.db, email, password)
+        _authenticate(email, password)
         return _ok({'user': user.to_public_dict()})
 
     # ---------- LOGIN ----------
@@ -78,7 +101,7 @@ class AuthApiController(http.Controller):
         if not email or not password:
             return _err('Email and password are required.')
         try:
-            request.session.authenticate(request.session.db, email, password)
+            _authenticate(email, password)
         except Exception:
             return _err('Invalid email or password.', 401)
         user = request.env.user

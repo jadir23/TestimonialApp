@@ -1,32 +1,262 @@
 ---
-import BaseLayout from '../../layouts/BaseLayout.astro';
-const cookie = Astro.request.headers.get('cookie') ?? '';
-const ODOO = process.env.ODOO_URL ?? 'http://localhost:8069';
-let user = null; let themes: Record<string, any> = {};
-try {
-  const me = await fetch(`${ODOO}/api/auth/me`, { headers: { Cookie: cookie } });
-  const mj = await me.json();
-  if (!me.ok) return Astro.redirect('/login');
-  user = mj.data.user;
-  const t = await fetch(`${ODOO}/api/themes`);
-  const tj = await t.json();
-  if (t.ok) themes = tj.data.themes;
-} catch {}
+import AppLayout from '../../layouts/AppLayout.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import Alert from '../../components/Alert.astro';
+import Field from '../../components/Field.astro';
+import Icon from '../../components/Icon.astro';
+import { sessionCookie, getUser, publicGet } from '../../lib/server';
+
+const cookie = sessionCookie(Astro.request);
+const user = await getUser(cookie);
+if (!user) return Astro.redirect('/login');
+
+const { data: themeData } = await publicGet('/api/themes');
+const themes: Record<string, any> = themeData?.themes ?? {};
 const error = Astro.url.searchParams.get('error');
+
+const slugify = (v: string) =>
+  v
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+const themeJson = JSON.stringify(themes);
+const defaultTheme = Object.keys(themes)[0] ?? 'minimal';
 ---
-<BaseLayout title="New space" user={user}>
-  <form method="POST" action="/api/spaces/create" class="mx-auto max-w-lg space-y-3 rounded border bg-white p-6">
-    <h1 class="text-xl font-bold">New space</h1>
-    {error && <p class="rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
-    <label class="block text-sm">Name*<input name="name" required class="mt-1 w-full rounded border px-3 py-2" placeholder="What our customers say" /></label>
-    <label class="block text-sm">Subtitle<textarea name="subtitle" class="mt-1 w-full rounded border px-3 py-2" placeholder="Tell us about your experience working with Acme." /></label>
-    <label class="block text-sm">URL slug (optional)<input name="slug" class="mt-1 w-full rounded border px-3 py-2" placeholder="acme-reviews" /></label>
-    <label class="block text-sm">Theme
-      <select name="theme" class="mt-1 w-full rounded border px-3 py-2">
-        {Object.entries(themes).map(([k, v]: any) => <option value={k}>{v.label}</option>)}
-      </select>
-    </label>
-    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="rating_enabled" checked value="1" /> Enable 1–5 star rating</label>
-    <button class="w-full rounded bg-black py-2 text-white">Create space</button>
-  </form>
-</BaseLayout>
+
+<AppLayout title="New space" user={user} path={Astro.url.pathname}>
+  <PageHeader
+    title="New space"
+    description="A space is a public page for collecting testimonials."
+  >
+    <a slot="actions" href="/spaces" class="btn btn-ghost btn-sm">Cancel</a>
+  </PageHeader>
+
+  {error && <div class="mb-5"><Alert type="danger">{error}</Alert></div>}
+
+  <div class="grid gap-4 lg:grid-cols-[1fr_20rem] lg:items-start">
+    <form method="POST" action="/api/spaces/create" class="card card-pad space-y-5">
+      <Field label="Space name" name="name" required>
+        <input
+          id="name"
+          class="input"
+          name="name"
+          required
+          autofocus
+          maxlength="120"
+          placeholder="What our customers say"
+          data-slug-source
+        />
+      </Field>
+
+      <Field
+        label="Subtitle"
+        name="subtitle"
+        hint="Shown under the heading on the public page."
+      >
+        <textarea
+          id="subtitle"
+          class="input"
+          name="subtitle"
+          rows="2"
+          maxlength="300"
+          placeholder="Tell us about your experience working with us."
+        ></textarea>
+      </Field>
+
+      <Field
+        label="URL slug"
+        name="slug"
+        hint="Leave blank to generate one from the name."
+      >
+        <div class="flex items-center gap-2">
+          <span
+            class="shrink-0 rounded-lg bg-surface-muted px-2.5 py-2 text-sm text-fg-subtle"
+            >/s/</span
+          >
+          <input
+            id="slug"
+            class="input font-mono"
+            name="slug"
+            maxlength="40"
+            placeholder="acme-reviews"
+            pattern="[a-z0-9\-]*"
+            data-slug-input
+          />
+        </div>
+      </Field>
+
+      <Field label="Theme" name="theme" required>
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Theme">
+          {
+            Object.entries(themes).map(([key, t]: [string, any], i) => (
+              <label class="group relative cursor-pointer">
+                <input
+                  type="radio"
+                  name="theme"
+                  value={key}
+                  class="peer sr-only"
+                  checked={i === 0}
+                  data-theme-option
+                  data-label={t.label}
+                  data-bg={t.bg}
+                  data-card={t.card}
+                  data-accent={t.accent}
+                />
+                <span
+                  class="block overflow-hidden rounded-lg border-2 border-line transition peer-checked:border-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand/40"
+                >
+                  <span class="flex h-14 flex-col justify-center gap-1 p-2.5" style={`background:${t.bg}`}>
+                    <span class="h-1.5 w-3/4 rounded-full" style={`background:${t.accent}`} />
+                    <span class="h-1 w-1/2 rounded-full opacity-40" style={`background:${t.accent}`} />
+                  </span>
+                  <span class="block border-t-line bg-surface px-2 py-1.5 text-[11px] font-medium">
+                    {t.label}
+                  </span>
+                </span>
+              </label>
+            ))
+          }
+        </div>
+      </Field>
+
+      <label class="flex cursor-pointer items-start gap-3 rounded-lg border-line p-3">
+        <input type="checkbox" name="rating_enabled" value="1" checked class="checkbox mt-0.5" />
+        <span>
+          <span class="block text-sm font-medium">Enable star ratings</span>
+          <span class="mt-0.5 block text-xs text-fg-muted">
+            Lets customers leave a 1–5 star rating with their testimonial.
+          </span>
+        </span>
+      </label>
+
+      <div class="flex gap-2 border-t-line pt-5">
+        <button type="submit" class="btn btn-primary">
+          <Icon name="plus" class="size-4" />
+          Create space
+        </button>
+        <a href="/spaces" class="btn btn-ghost">Cancel</a>
+      </div>
+    </form>
+
+    <!-- ---------- Live preview ---------- -->
+    <aside class="lg:sticky lg:top-8">
+      <p class="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-fg-subtle uppercase">
+        <Icon name="eye" class="size-3.5" />
+        Preview
+      </p>
+      <div
+        class="overflow-hidden rounded-card border-line shadow-card"
+        style="background:var(--c-canvas)"
+      >
+        <div class="p-5">
+          <div class="rounded-xl p-5" data-preview-card>
+            <h3 class="text-lg font-semibold" data-preview-title>Space name</h3>
+            <p class="mt-1 text-sm" data-preview-subtitle>
+              Your subtitle appears here.
+            </p>
+            <div class="mt-4 space-y-2" aria-hidden="true">
+              <div class="h-8 rounded-lg border border-line bg-surface"></div>
+              <div class="h-8 rounded-lg border border-line bg-surface"></div>
+              <div class="h-16 rounded-lg border border-line bg-surface"></div>
+            </div>
+            <div
+              class="mt-4 rounded-lg px-3 py-2 text-center text-xs font-medium"
+              data-preview-btn
+            >
+              Submit testimonial
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="mt-2 text-xs text-fg-subtle">
+        Approximate view of your public page.
+      </p>
+    </aside>
+  </div>
+</AppLayout>
+
+<script define:vars={{ themeJson }}>
+  const themes = JSON.parse(themeJson);
+  const form = document.currentScript?.closest('form') ?? document.querySelector('form[action="/api/spaces/create"]');
+
+  const nameInput = document.querySelector('[data-slug-source]');
+  const slugInput = document.querySelector('[data-slug-input]');
+  const title = document.querySelector('[data-preview-title]');
+  const subtitle = document.querySelector('[data-preview-subtitle]');
+  const card = document.querySelector('[data-preview-card]');
+  const btn = document.querySelector('[data-preview-btn]');
+
+  // Only auto-fill the slug while the user hasn't typed one themselves.
+  let slugTouched = slugInput?.value.trim().length > 0;
+  slugInput?.addEventListener('input', () => (slugTouched = true));
+
+  nameInput?.addEventListener('input', () => {
+    const v = nameInput.value.trim();
+    if (title) title.textContent = v || 'Space name';
+    if (!slugTouched && slugInput) {
+      slugInput.value = v
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 40);
+    }
+  });
+
+  subtitle?.addEventListener('input', () => {
+    const v = subtitle.value.trim();
+    subtitle.textContent = v || 'Your subtitle appears here.';
+  });
+
+  function applyTheme() {
+    const opt = document.querySelector('[data-theme-option]:checked');
+    if (!opt || !card || !btn) return;
+    const bg = opt.dataset.bg!;
+    const accent = opt.dataset.accent!;
+    card.style.background = opt.dataset.card || '#fff';
+    card.style.color = bg;
+    btn.style.background = accent;
+    btn.style.color = pickText(accent);
+    // The preview sits on a themed background, so ensure contrast for the subtitle.
+    subtitle.style.color = mix(bg, accent, 0.55);
+    subtitle.style.opacity = '0.85';
+    title.style.color = pickText(bg);
+  }
+
+  function hexToRgb(h) {
+    const s = h.replace('#', '');
+    const n = s.length === 3 ? s.split('').map((c) => c + c).join('') : s;
+    return [0, 2, 4].map((i) => parseInt(n.slice(i, i + 2), 16));
+  }
+  function lum(hex) {
+    const [r, g, b] = hexToRgb(hex).map((v) => {
+      const c = v / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+  /** WCAG-appropriate text colour for a background. */
+  function pickText(hex) {
+    try {
+      return lum(hex) > 0.45 ? '#111827' : '#ffffff';
+    } catch {
+      return '#ffffff';
+    }
+  }
+  /** Blend a foreground into a background at a given weight. */
+  function mix(bg, fg, w) {
+    try {
+      const b = hexToRgb(bg);
+      const f = hexToRgb(fg);
+      const c = b.map((v, i) => Math.round(v + (f[i] - v) * w));
+      return `rgb(${c[0]} ${c[1]} ${c[2]})`;
+    } catch {
+      return fg;
+    }
+  }
+
+  form?.querySelectorAll('[data-theme-option]').forEach((el) =>
+    el.addEventListener('change', applyTheme)
+  );
+  applyTheme();
+</script>

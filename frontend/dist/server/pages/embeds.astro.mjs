@@ -1,32 +1,37 @@
-import { c as createComponent, d as renderComponent, r as renderTemplate, b as createAstro, m as maybeRenderHead, a as addAttribute } from '../chunks/astro/server_DGbUKG4V.mjs';
+import { c as createComponent, d as renderComponent, r as renderTemplate, b as createAstro, m as maybeRenderHead, a as addAttribute } from '../chunks/astro/server_D6TAomcX.mjs';
 import 'kleur/colors';
-import { $ as $$BaseLayout } from '../chunks/BaseLayout_CZ5FtSgD.mjs';
+import { s as sessionCookie, g as getUser, a as apiGet, $ as $$AppLayout } from '../chunks/server_DuKSHUD0.mjs';
+import { $ as $$PageHeader } from '../chunks/PageHeader_BWTgY8GU.mjs';
+import { $ as $$Alert } from '../chunks/Alert_D0X2E_vS.mjs';
+import { $ as $$EmptyState } from '../chunks/EmptyState_DT4xYX8g.mjs';
+import { $ as $$Icon } from '../chunks/Icon_D3cJPChc.mjs';
 export { renderers } from '../renderers.mjs';
 
 const $$Astro = createAstro();
 const $$Index = createComponent(async ($$result, $$props, $$slots) => {
   const Astro2 = $$result.createAstro($$Astro, $$props, $$slots);
   Astro2.self = $$Index;
-  const cookie = Astro2.request.headers.get("cookie") ?? "";
-  const ODOO = process.env.ODOO_URL ?? "http://localhost:8069";
-  let user = null;
-  let embeds = [];
-  let error = "";
-  try {
-    const me = await fetch(`${ODOO}/api/auth/me`, { headers: { Cookie: cookie } });
-    const mj = await me.json();
-    if (!me.ok) return Astro2.redirect("/login");
-    user = mj.data.user;
-    const r = await fetch(`${ODOO}/api/embeds`, { headers: { Cookie: cookie } });
-    const j = await r.json();
-    if (r.ok) embeds = j.data.embeds;
-  } catch {
-    error = "Backend unreachable.";
-  }
-  return renderTemplate`${renderComponent($$result, "BaseLayout", $$BaseLayout, { "title": "Embeds", "user": user }, { "default": async ($$result2) => renderTemplate` ${maybeRenderHead()}<div class="flex items-center justify-between"> <h1 class="text-2xl font-bold">Embeds</h1> <a href="/embeds/new" class="rounded bg-black px-3 py-1.5 text-white text-sm">+ New embed</a> </div> ${error && renderTemplate`<p class="mt-3 rounded bg-red-50 p-2 text-sm text-red-700">${error}</p>`}${embeds.length === 0 && !error ? renderTemplate`<div class="mt-6 rounded border bg-white p-8 text-center text-sm text-gray-600">No widgets yet. Publish some testimonials first, then create a widget to show them on your site.</div>` : renderTemplate`<div class="mt-4 grid gap-3 md:grid-cols-2"> ${embeds.map((e) => renderTemplate`<div class="rounded border bg-white p-4 text-sm"> <div class="font-bold">${e.name} <span class="font-normal text-gray-500">· ${e.space_name}</span></div> <div class="text-gray-600">${e.layout} · ${e.appearance} · ${e.animation} · ${e.testimonial_limit === 0 ? "all" : e.testimonial_limit}</div> <a${addAttribute(`/embeds/${e.id}`, "href")} class="mt-1 inline-block underline">Open builder</a> </div>`)} </div>`}<div class="mt-6 rounded border bg-white p-4 text-sm"> <h2 class="font-bold">External-site test</h2> <p class="text-gray-600">Paste any widget snippet into a plain <code>.html</code> file and open it — only published testimonials render, no login needed.</p> </div> ` })}`;
-}, "/home/bs01754/Workspace/Projects/AE_Project/frontend/src/pages/embeds/index.astro", void 0);
+  const cookie = sessionCookie(Astro2.request);
+  const user = await getUser(cookie);
+  if (!user) return Astro2.redirect("/login");
+  const { data, error } = await apiGet("/api/embeds", cookie);
+  const embeds = data?.embeds ?? [];
+  const LIMIT_LABEL = { "3": "3 items", "6": "6 items", "9": "9 items", "0": "All" };
+  return renderTemplate`${renderComponent($$result, "AppLayout", $$AppLayout, { "title": "Embeds", "user": user, "path": Astro2.url.pathname }, { "default": async ($$result2) => renderTemplate` ${renderComponent($$result2, "PageHeader", $$PageHeader, { "title": "Embeds", "description": "Widgets you can paste into any website to show your published testimonials." }, { "actions": async ($$result3) => renderTemplate`${maybeRenderHead()}<a href="/embeds/new" class="btn btn-primary btn-sm"> ${renderComponent($$result3, "Icon", $$Icon, { "name": "plus", "class": "size-4" })}
+New embed
+</a>` })} ${error && renderTemplate`<div class="mb-5">${renderComponent($$result2, "Alert", $$Alert, { "type": "danger" }, { "default": async ($$result3) => renderTemplate`${error}` })}</div>`}${embeds.length === 0 && !error ? renderTemplate`${renderComponent($$result2, "EmptyState", $$EmptyState, { "icon": "embed", "title": "No widgets yet", "description": "Publish a few testimonials, then create a widget to display them on your site." }, { "default": async ($$result3) => renderTemplate` <a href="/embeds/new" class="btn btn-primary btn-sm"> ${renderComponent($$result3, "Icon", $$Icon, { "name": "plus", "class": "size-4" })}
+Create your first widget
+</a> ` })}` : renderTemplate`<ul class="grid gap-3 sm:grid-cols-2"> ${embeds.map((e) => renderTemplate`<li class="card card-pad flex flex-col"> <div class="flex items-start justify-between gap-3"> <div class="min-w-0"> <a${addAttribute(`/embeds/${e.id}`, "href")} class="font-semibold hover:underline"> ${e.name} </a> <p class="mt-0.5 truncate text-[13px] text-fg-muted">${e.space_name}</p> </div> <span class="badge badge-neutral shrink-0 capitalize">${e.layout}</span> </div> <dl class="mt-4 flex flex-wrap gap-1.5"> <span class="badge badge-neutral">${e.appearance}</span> ${e.animation !== "none" && renderTemplate`<span class="badge badge-neutral capitalize">${e.animation}</span>`} <span class="badge badge-neutral"> ${LIMIT_LABEL[String(e.testimonial_limit)] ?? e.testimonial_limit} </span> </dl> <div class="mt-4 flex items-center gap-2 border-t-line pt-4"> <a${addAttribute(`/embeds/${e.id}`, "href")} class="btn btn-secondary btn-sm"> ${renderComponent($$result2, "Icon", $$Icon, { "name": "settings", "class": "size-4" })}
+Open builder
+</a> <a${addAttribute(`/embeds/${e.id}#snippet`, "href")} class="btn btn-ghost btn-sm"> ${renderComponent($$result2, "Icon", $$Icon, { "name": "copy", "class": "size-4" })}
+Get code
+</a> </div> </li>`)} </ul>`}<div class="mt-6"> ${renderComponent($$result2, "Alert", $$Alert, { "type": "info", "title": "Only published testimonials appear" }, { "default": async ($$result3) => renderTemplate`
+Widgets read from your public embed endpoint, so pending and hidden
+      testimonials are never exposed — even if someone has the URL.
+` })} </div> ` })}`;
+}, "/home/AEapp/TestimonialApp/frontend/src/pages/embeds/index.astro", void 0);
 
-const $$file = "/home/bs01754/Workspace/Projects/AE_Project/frontend/src/pages/embeds/index.astro";
+const $$file = "/home/AEapp/TestimonialApp/frontend/src/pages/embeds/index.astro";
 const $$url = "/embeds";
 
 const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({

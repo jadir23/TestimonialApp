@@ -1,1 +1,309 @@
 @import "tailwindcss";
+
+/* ============================================================================
+   Design tokens
+   ----------------------------------------------------------------------------
+   Semantic tokens live as plain CSS vars so light/dark can be swapped by
+   toggling one class on <html>. Tailwind's `@theme inline` maps them into
+   utilities (bg-canvas, text-fg-muted, border-line, ...) without duplicating
+   values. Add a token here first, then use the generated utility everywhere.
+   ========================================================================== */
+
+:root {
+  --c-canvas: oklch(98.4% 0.003 250);
+  --c-surface: oklch(100% 0 0);
+  --c-surface-muted: oklch(96.6% 0.005 250);
+  --c-surface-hover: oklch(94.5% 0.008 250);
+
+  --c-line: oklch(91.5% 0.008 250);
+  --c-line-strong: oklch(85% 0.012 250);
+
+  --c-fg: oklch(21% 0.02 265);
+  --c-fg-muted: oklch(50% 0.02 265);
+  --c-fg-subtle: oklch(63% 0.02 265);
+
+  --c-brand: oklch(54% 0.19 273);
+  --c-brand-hover: oklch(47% 0.19 273);
+  --c-brand-fg: oklch(100% 0 0);
+  --c-brand-soft: oklch(95% 0.03 273);
+  --c-brand-border: oklch(88% 0.07 273);
+
+  --c-success: oklch(58% 0.14 155);
+  --c-success-soft: oklch(96% 0.04 155);
+  --c-warning: oklch(70% 0.15 75);
+  --c-warning-soft: oklch(97% 0.05 85);
+  --c-danger: oklch(56% 0.2 22);
+  --c-danger-soft: oklch(96% 0.03 22);
+  --c-star: oklch(78% 0.15 80);
+
+  --shadow-card: 0 1px 2px oklch(21% 0.02 265 / 0.05), 0 1px 3px oklch(21% 0.02 265 / 0.04);
+  --shadow-pop: 0 10px 15px -3px oklch(21% 0.02 265 / 0.1), 0 4px 6px -4px oklch(21% 0.02 265 / 0.1);
+  --shadow-lg: 0 20px 25px -5px oklch(21% 0.02 265 / 0.1), 0 8px 10px -6px oklch(21% 0.02 265 / 0.1);
+}
+
+.dark {
+  --c-canvas: oklch(16.5% 0.015 265);
+  --c-surface: oklch(21% 0.018 265);
+  --c-surface-muted: oklch(25% 0.02 265);
+  --c-surface-hover: oklch(28% 0.022 265);
+
+  --c-line: oklch(30% 0.02 265);
+  --c-line-strong: oklch(38% 0.022 265);
+
+  --c-fg: oklch(97% 0.005 265);
+  --c-fg-muted: oklch(72% 0.015 265);
+  --c-fg-subtle: oklch(58% 0.018 265);
+
+  --c-brand: oklch(66% 0.17 273);
+  --c-brand-hover: oklch(72% 0.16 273);
+  --c-brand-fg: oklch(16.5% 0.015 265);
+  --c-brand-soft: oklch(30% 0.07 273);
+  --c-brand-border: oklch(40% 0.1 273);
+
+  --c-success: oklch(70% 0.14 155);
+  --c-success-soft: oklch(28% 0.06 155);
+  --c-warning: oklch(80% 0.13 80);
+  --c-warning-soft: oklch(30% 0.06 80);
+  --c-danger: oklch(68% 0.17 22);
+  --c-danger-soft: oklch(30% 0.08 22);
+  --c-star: oklch(82% 0.14 80);
+
+  --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.3);
+  --shadow-pop: 0 10px 15px -3px oklch(0% 0 0 / 0.45);
+  --shadow-lg: 0 20px 25px -5px oklch(0% 0 0 / 0.5);
+}
+
+@theme inline {
+  --color-canvas: var(--c-canvas);
+  --color-surface: var(--c-surface);
+  --color-surface-muted: var(--c-surface-muted);
+  --color-surface-hover: var(--c-surface-hover);
+
+  --color-line: var(--c-line);
+  --color-line-strong: var(--c-line-strong);
+
+  --color-fg: var(--c-fg);
+  --color-fg-muted: var(--c-fg-muted);
+  --color-fg-subtle: var(--c-fg-subtle);
+
+  --color-brand: var(--c-brand);
+  --color-brand-hover: var(--c-brand-hover);
+  --color-brand-fg: var(--c-brand-fg);
+  --color-brand-soft: var(--c-brand-soft);
+  --color-brand-border: var(--c-brand-border);
+
+  --color-success: var(--c-success);
+  --color-success-soft: var(--c-success-soft);
+  --color-warning: var(--c-warning);
+  --color-warning-soft: var(--c-warning-soft);
+  --color-danger: var(--c-danger);
+  --color-danger-soft: var(--c-danger-soft);
+  --color-star: var(--c-star);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+  --shadow-lg: var(--shadow-lg);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  --radius-card: 0.875rem;
+}
+
+/* ============================================================================
+   Base
+   ========================================================================== */
+
+@layer base {
+  * {
+    border-color: var(--c-line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    background-color: var(--c-canvas);
+    color: var(--c-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Visible, consistent focus for keyboard users on every interactive element. */
+  :focus-visible {
+    outline: 2px solid var(--c-brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background-color: var(--c-brand-soft);
+    color: var(--c-fg);
+  }
+
+  /* Tabular numerals keep counters from jittering as they tick up. */
+  .nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ============================================================================
+   Components — reusable primitives. Prefer these over long utility strings so
+   spacing/radius/focus stay consistent as the app grows.
+   ========================================================================== */
+
+@layer components {
+  /* ---------- Buttons ---------- */
+  .btn {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg
+           text-sm font-medium whitespace-nowrap transition select-none
+           disabled:pointer-events-none disabled:opacity-55;
+  }
+
+  .btn-md {
+    @apply h-9 px-3.5;
+  }
+  .btn-sm {
+    @apply h-8 px-3 text-[13px];
+  }
+  .btn-lg {
+    @apply h-11 px-5 text-[15px];
+  }
+  .btn-icon {
+    @apply h-8 w-8 shrink-0 p-0;
+  }
+
+  .btn-primary {
+    @apply bg-brand text-brand-fg shadow-card hover:bg-brand-hover active:translate-y-px;
+  }
+  .btn-secondary {
+    @apply border-line-strong bg-surface text-fg shadow-card hover:bg-surface-muted active:translate-y-px;
+  }
+  .btn-ghost {
+    @apply text-fg-muted hover:bg-surface-hover hover:text-fg;
+  }
+  .btn-danger {
+    @apply bg-danger text-white shadow-card hover:brightness-110 active:translate-y-px;
+  }
+  .btn-danger-ghost {
+    @apply text-danger hover:bg-danger-soft;
+  }
+
+  /* ---------- Form controls ---------- */
+  .field-label {
+    @apply mb-1.5 block text-[13px] font-medium text-fg;
+  }
+  .field-hint {
+    @apply mt-1.5 text-xs text-fg-subtle;
+  }
+
+  .input {
+    @apply block w-full rounded-lg border-line-strong bg-surface px-3 py-2 text-sm text-fg
+           placeholder:text-fg-subtle
+           focus:border-brand focus:ring-2 focus:ring-brand/25 focus:outline-none;
+  }
+  textarea.input {
+    @apply resize-y;
+  }
+  select.input {
+    @apply cursor-pointer pr-8;
+  }
+  .input-error {
+    @apply border-danger focus:border-danger focus:ring-danger/25;
+  }
+
+  .checkbox {
+    @apply size-4 shrink-0 cursor-pointer rounded border-line-strong text-brand
+           accent-[var(--c-brand)] focus:ring-2 focus:ring-brand/25;
+  }
+
+  /* ---------- Surfaces ---------- */
+  .card {
+    @apply rounded-card border-line bg-surface shadow-card;
+  }
+  .card-pad {
+    @apply p-5 sm:p-6;
+  }
+
+  /* ---------- Badges / pills ---------- */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .badge-neutral {
+    @apply bg-surface-muted text-fg-muted;
+  }
+  .badge-brand {
+    @apply bg-brand-soft text-brand;
+  }
+  .badge-success {
+    @apply bg-success-soft text-success;
+  }
+  .badge-warning {
+    @apply bg-warning-soft text-warning;
+  }
+  .badge-danger {
+    @apply bg-danger-soft text-danger;
+  }
+
+  /* ---------- Alerts ---------- */
+  .alert {
+    @apply flex gap-3 rounded-lg border-line p-3.5 text-sm;
+  }
+  .alert-danger {
+    @apply border-danger/30 bg-danger-soft text-danger;
+  }
+  .alert-success {
+    @apply border-success/30 bg-success-soft text-success;
+  }
+  .alert-warning {
+    @apply border-warning/30 bg-warning-soft text-warning;
+  }
+  .alert-info {
+    @apply border-brand-border bg-brand-soft text-brand;
+  }
+
+  /* ---------- Links ---------- */
+  .link {
+    @apply font-medium text-brand underline decoration-brand/30 underline-offset-2
+           hover:decoration-brand;
+  }
+  .link-muted {
+    @apply text-fg-muted underline decoration-line-strong underline-offset-2 hover:text-fg;
+  }
+
+  /* ---------- Tables ---------- */
+  .table-wrap {
+    @apply overflow-x-auto;
+  }
+  .table {
+    @apply w-full text-left text-sm;
+  }
+  .table th {
+    @apply border-b-line px-3 py-2.5 text-xs font-semibold tracking-wide text-fg-subtle uppercase;
+  }
+  .table td {
+    @apply border-b-line px-3 py-3 align-middle;
+  }
+  .table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  .table tbody tr:hover {
+    @apply bg-surface-muted/60;
+  }
+}

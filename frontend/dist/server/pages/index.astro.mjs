@@ -1,13 +1,74 @@
-import { c as createComponent, d as renderComponent, r as renderTemplate, m as maybeRenderHead } from '../chunks/astro/server_DGbUKG4V.mjs';
+import { c as createComponent, d as renderComponent, r as renderTemplate, m as maybeRenderHead } from '../chunks/astro/server_D6TAomcX.mjs';
 import 'kleur/colors';
-import { $ as $$BaseLayout } from '../chunks/BaseLayout_CZ5FtSgD.mjs';
+import { $ as $$AuthLayout } from '../chunks/AuthLayout_V1AjbgP9.mjs';
+import { $ as $$Icon } from '../chunks/Icon_D3cJPChc.mjs';
 export { renderers } from '../renderers.mjs';
 
 const $$Index = createComponent(($$result, $$props, $$slots) => {
-  return renderTemplate`${renderComponent($$result, "BaseLayout", $$BaseLayout, { "title": "Testimonial SaaS \u2014 collect testimonials" }, { "default": ($$result2) => renderTemplate` ${maybeRenderHead()}<div class="py-16 text-center"> <h1 class="text-4xl font-bold">Collect testimonials in minutes</h1> <p class="mt-3 text-gray-600">Create a space, share a link, publish to your site.</p> <div class="mt-6 flex justify-center gap-3"> <a href="/register" class="rounded bg-black px-4 py-2 text-white">Get started free</a> <a href="/login" class="rounded border px-4 py-2">Login</a> </div> </div> ` })}`;
-}, "/home/bs01754/Workspace/Projects/AE_Project/frontend/src/pages/index.astro", void 0);
+  const FEATURES = [
+    {
+      icon: "globe",
+      title: "Branded collection pages",
+      body: "Each space gets its own slug, theme and submission form. No signup required for your customers \u2014 they just fill in a form."
+    },
+    {
+      icon: "inbox",
+      title: "Moderation inbox",
+      body: "Filter by pending, published or favorites. Publish, hide and star the best ones from a single view."
+    },
+    {
+      icon: "embed",
+      title: "Drop-in widget",
+      body: "Paste one snippet on any site. Grid, masonry or carousel, light or dark. Dependency-free and shows published testimonials only."
+    },
+    {
+      icon: "chart",
+      title: "Know what is working",
+      body: "Per-day collection charts, space usage and customer counts, so you know when to upgrade or follow up."
+    }
+  ];
+  const STEPS = [
+    { n: "1", title: "Create a space", body: "Name it, pick a theme and share the link." },
+    { n: "2", title: "Collect", body: "Customers submit without creating an account." },
+    { n: "3", title: "Publish", body: "Approve the best ones and embed them anywhere." }
+  ];
+  return renderTemplate`${renderComponent($$result, "AuthLayout", $$AuthLayout, { "wide": true, "title": "Testimonials \u2014 collect, curate and showcase customer proof", "description": "Create a branded page, share one link, collect testimonials without asking customers to sign up, and embed the best ones on your site." }, { "default": ($$result2) => renderTemplate`  ${maybeRenderHead()}<section class="text-center"> <span class="badge badge-brand mx-auto inline-flex items-center gap-1.5 px-3 py-1 text-[13px]"> ${renderComponent($$result2, "Icon", $$Icon, { "name": "sparkles", "class": "size-3.5" })}
+Free plan forever · no credit card
+</span> <h1 class="mx-auto mt-6 max-w-3xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl lg:text-6xl">
+Collect testimonials <span class="text-brand">in minutes</span> </h1> <p class="mx-auto mt-5 max-w-xl text-base text-pretty text-fg-muted sm:text-lg">
+Create a space, share a link, publish to your site. Everything your customers
+      need to say something great — without creating an account.
+</p> <div class="mt-8 flex flex-wrap items-center justify-center gap-3"> <a href="/register" class="btn btn-primary btn-lg">
+Get started free
+${renderComponent($$result2, "Icon", $$Icon, { "name": "arrowRight", "class": "size-4" })} </a> <a href="/login" class="btn btn-secondary btn-lg">Sign in</a> </div> <p class="mt-4 text-xs text-fg-subtle">
+3 spaces · 100 testimonials per space · upgrade any time
+</p> </section>  <section class="mt-20 sm:mt-28"> <div class="mx-auto max-w-2xl text-center"> <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
+Everything you need to look credible
+</h2> <p class="mt-3 text-fg-muted">
+The full loop — collect, moderate, publish — without the busywork.
+</p> </div> <div class="mt-12 grid gap-4 sm:grid-cols-2"> ${FEATURES.map((f) => renderTemplate`<div class="card card-pad transition hover:shadow-pop"> <span class="flex size-10 items-center justify-center rounded-lg bg-brand-soft text-brand" aria-hidden="true"> ${renderComponent($$result2, "Icon", $$Icon, { "name": f.icon, "class": "size-5" })} </span> <h3 class="mt-4 font-semibold">${f.title}</h3> <p class="mt-1.5 text-sm leading-relaxed text-fg-muted">${f.body}</p> </div>`)} </div> </section>  <section class="mt-20 sm:mt-28"> <h2 class="text-center text-2xl font-semibold tracking-tight sm:text-3xl">
+How it works
+</h2> <ol class="mt-10 grid gap-6 sm:grid-cols-3"> ${STEPS.map((s) => renderTemplate`<li class="relative text-center"> <span class="nums mx-auto flex size-9 items-center justify-center rounded-full bg-brand text-sm font-semibold text-brand-fg" aria-hidden="true"> ${s.n} </span> <h3 class="mt-4 font-semibold">${s.title}</h3> <p class="mt-1.5 text-sm text-fg-muted">${s.body}</p> </li>`)} </ol> </section>  <section class="mt-20 sm:mt-28"> <div class="grid gap-4 sm:grid-cols-2"> <div class="card card-pad"> <h3 class="font-semibold">Free</h3> <p class="nums mt-3 text-3xl font-semibold">$0<span class="text-base font-normal text-fg-muted">/mo</span></p> <ul class="mt-5 space-y-2.5 text-sm text-fg-muted"> ${[
+    "3 collection spaces",
+    "100 testimonials per space",
+    "All embed widgets",
+    "Collection analytics"
+  ].map((f) => renderTemplate`<li class="flex items-start gap-2.5"> ${renderComponent($$result2, "Icon", $$Icon, { "name": "check", "class": "mt-0.5 size-4 shrink-0 text-success" })} ${f} </li>`)} </ul> <a href="/register" class="btn btn-secondary mt-6 w-full">Start free</a> </div> <div class="card card-pad relative border-brand-border ring-1 ring-brand/20"> <span class="badge badge-brand absolute -top-2.5 left-6">Most popular</span> <h3 class="font-semibold">Pro</h3> <p class="nums mt-3 text-3xl font-semibold">
+$19.99<span class="text-base font-normal text-fg-muted">/mo</span> </p> <ul class="mt-5 space-y-2.5 text-sm text-fg-muted"> ${[
+    "25 collection spaces",
+    "1,000 testimonials per space",
+    "All themes and layouts",
+    "Priority support"
+  ].map((f) => renderTemplate`<li class="flex items-start gap-2.5"> ${renderComponent($$result2, "Icon", $$Icon, { "name": "check", "class": "mt-0.5 size-4 shrink-0 text-success" })} ${f} </li>`)} </ul> <a href="/register" class="btn btn-primary mt-6 w-full">Start free, upgrade later</a> </div> </div> </section>  <section class="mt-20 sm:mt-28"> <div class="card card-pad border-brand-border bg-brand-soft text-center ring-1 ring-brand/20"> <h2 class="text-2xl font-semibold tracking-tight">Ready to collect proof?</h2> <p class="mx-auto mt-2 max-w-md text-sm text-fg-muted">
+Your first space takes about a minute. Free plan, no credit card.
+</p> <a href="/register" class="btn btn-primary btn-lg mt-6">
+Create your first space
+${renderComponent($$result2, "Icon", $$Icon, { "name": "arrowRight", "class": "size-4" })} </a> </div> </section> <footer class="mt-16 pb-4 text-center text-xs text-fg-subtle">
+Testimonials — collect, curate and showcase customer proof.
+</footer> ` })}`;
+}, "/home/AEapp/TestimonialApp/frontend/src/pages/index.astro", void 0);
 
-const $$file = "/home/bs01754/Workspace/Projects/AE_Project/frontend/src/pages/index.astro";
+const $$file = "/home/AEapp/TestimonialApp/frontend/src/pages/index.astro";
 const $$url = "";
 
 const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({

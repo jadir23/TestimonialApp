@@ -1,0 +1,36 @@
+---
+/** Read-only star rating. Pass `value` (0-5) or omit for an empty 5-star track. */
+interface Props {
+  value?: number | null;
+  size?: 'sm' | 'md' | 'lg';
+  class?: string;
+  label?: string;
+}
+const { value, size = 'md', class: className = '', label } = Astro.props;
+const stars: number[] = [1, 2, 3, 4, 5];
+const px = { sm: 'size-3.5', md: 'size-4', lg: 'size-5' }[size];
+const n = Number(value ?? 0);
+const text = label ?? (n > 0 ? `${n} out of 5 stars` : 'No rating');
+---
+
+<div
+  class:list={['inline-flex items-center gap-0.5', className]}
+  role="img"
+  aria-label={text}
+>
+  {
+    stars.map((i) => (
+      <svg
+        class:list={[px, i <= n ? 'text-star' : 'text-line-strong']}
+        viewBox="0 0 24 24"
+        fill={i <= n ? 'currentColor' : 'none'}
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.9-5.4 2.9 1-6L3.2 9.4l6.1-.9L12 3Z" />
+      </svg>
+    ))
+  }
+</div>

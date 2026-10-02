@@ -1,59 +1,232 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-const cookie = Astro.request.headers.get('cookie') ?? '';
-const ODOO = process.env.ODOO_URL ?? 'http://localhost:8069';
-let user = null; let bill: any = null; let error = '';
+import AppLayout from '../layouts/AppLayout.astro';
+import PageHeader from '../components/PageHeader.astro';
+import Alert from '../components/Alert.astro';
+import Icon from '../components/Icon.astro';
+import { sessionCookie, getUser, apiGet } from '../lib/server';
+
+const cookie = sessionCookie(Astro.request);
+const user = await getUser(cookie);
+if (!user) return Astro.redirect('/login');
+
+const { ok, data: bill, error } = await apiGet('/api/billing/status', cookie);
+
 const notice = Astro.url.searchParams.get('notice');
 const errParam = Astro.url.searchParams.get('error');
-try {
-  const me = await fetch(`${ODOO}/api/auth/me`, { headers: { Cookie: cookie } });
-  const mj = await me.json();
-  if (!me.ok) return Astro.redirect('/login');
-  user = mj.data.user;
-  const r = await fetch(`${ODOO}/api/billing/status`, { headers: { Cookie: cookie } });
-  const j = await r.json();
-  if (r.ok) bill = j.data; else error = j.error || 'Could not load billing.';
-} catch { error = 'Backend unreachable.'; }
+
 const sub = bill?.subscription ?? {};
-const usedSpaces = bill?.usage?.length ?? 0;
-const usedTestimonials = (bill?.usage ?? []).reduce((a: number, u: any) => a + u.count, 0);
+const isPro = bill?.plan === 'pro';
+const limits = bill?.limits ?? { spaces: 3, testimonials_per_space: 100 };
+const usage: any[] = bill?.usage ?? [];
+const usedSpaces = usage.length;
+const usedTestimonials = usage.reduce((a: number, u: any) => a + Number(u.count || 0), 0);
+const usedLimit = usedTestimonials / Math.max(1, usedSpaces * limits.testimonials_per_space) * 100;
+
+const FEATURES_FREE = ['3 collection spaces', '100 testimonials per space', 'All embed widgets', 'Collection analytics'];
+const FEATURES_PRO = ['25 collection spaces', '1,000 testimonials per space', 'All themes and layouts', 'Priority support'];
 ---
-<BaseLayout title="Billing" user={user}>
-  <h1 class="text-2xl font-bold">Billing</h1>
-  {notice === 'success' && <p class="mt-2 rounded bg-green-50 p-2 text-sm">Payment received — Pro activates once Stripe confirms (usually seconds). Refresh this page shortly.</p>}
-  {notice === 'cancelled' && <p class="mt-2 rounded bg-gray-100 p-2 text-sm">Checkout cancelled. No charge was made.</p>}
-  {sub.status === 'past_due' && <p class="mt-2 rounded bg-red-50 p-2 text-sm text-red-700">Latest payment failed. Please update your payment method to keep Pro.</p>}
-  {error && <p class="mt-2 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
-  {errParam && <p class="mt-2 rounded bg-red-50 p-2 text-sm text-red-700">{errParam}</p>}
-  {bill && (
-    <>
-      <div class="mt-3 rounded border bg-white p-4 text-sm">
-        <p>Current plan: <strong>{bill.plan === 'pro' ? 'Pro — You\'re subscribed to Pro.' : 'Free'}</strong></p>
-        <p class="text-gray-600">Subscription status: {sub.status ?? 'none'}{sub.current_period_end ? ` · renews ${sub.current_period_end.slice(0, 10)}` : ''}</p>
-        <p class="text-gray-600">Usage: {usedSpaces}/{bill.limits.spaces} spaces · {usedTestimonials} testimonials total</p>
-        <div class="mt-3 flex gap-2">
-          {bill.plan === 'free'
-            ? <form method="POST" action="/api/billing/checkout"><button class="rounded bg-black px-4 py-2 text-white">Upgrade to Pro — $19.99/mo</button></form>
-            : <form method="POST" action="/api/billing/portal"><button class="rounded border px-4 py-2">Manage subscription (Stripe portal)</button></form>}
-        </div>
-        {!bill.stripe_configured && <p class="mt-2 text-xs text-gray-500">Stripe is not configured on this environment (set STRIPE_SECRET_KEY + STRIPE_PRICE_PRO). Upgrade will show an error until then.</p>}
-      </div>
-      <div class="mt-3 grid gap-3 md:grid-cols-2 text-sm">
-        <div class="rounded border bg-white p-4">
-          <h2 class="font-bold">Free — $0/month</h2>
-          <ul class="mt-1 list-disc pl-5 text-gray-600"><li>3 spaces</li><li>100 testimonials per space</li><li>Embeds + analytics</li><li>Limited themes</li></ul>
-        </div>
-        <div class="rounded border bg-white p-4">
-          <h2 class="font-bold">Pro — $19.99/month</h2>
-          <ul class="mt-1 list-disc pl-5 text-gray-600"><li>25 spaces</li><li>1,000 testimonials per space</li><li>Embeds + analytics</li><li>All themes</li></ul>
-        </div>
-      </div>
-      {bill.usage.length > 0 && (
-        <div class="mt-3 rounded border bg-white p-4 text-sm">
-          <h2 class="font-bold">Current usage</h2>
-          <ul class="mt-1 space-y-1">{bill.usage.map((u: any) => <li>{u.name}: {u.count} testimonials</li>)}</ul>
-        </div>
-      )}
-    </>
-  )}
-</BaseLayout>
+
+<AppLayout title="Billing" user={user} path={Astro.url.pathname}>
+  <PageHeader title="Billing" description="Manage your plan and payment details." />
+
+  <div class="mb-5 space-y-3">
+    {notice === 'success' && (
+      <Alert type="success" title="Payment received">
+        Pro activates as soon as Stripe confirms it — usually within seconds.{' '}
+        <a href="/billing" class="font-medium underline">Refresh to check</a>.
+      </Alert>
+    )}
+    {notice === 'cancelled' && (
+      <Alert type="info">Checkout was cancelled. No charge was made.</Alert>
+    )}
+    {sub.status === 'past_due' && (
+      <Alert type="danger" title="Payment failed">
+        Your last payment didn't go through. Update your card to keep Pro active.
+      </Alert>
+    )}
+    {error && <Alert type="danger">{error}</Alert>}
+    {errParam && <Alert type="danger">{errParam}</Alert>}
+    {bill && !bill.stripe_configured && (
+      <Alert type="warning" title="Stripe isn't configured on this environment">
+        Set <code class="font-mono">STRIPE_SECRET_KEY</code> and{' '}
+        <code class="font-mono">STRIPE_PRICE_PRO</code> to enable payments. Upgrading
+        will fail until then.
+      </Alert>
+    )}
+  </div>
+
+  {
+    ok && bill && (
+      <>
+        {/* ---------- Current plan ---------- */}
+        <section class="card card-pad">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p class="text-[13px] font-medium text-fg-muted">Current plan</p>
+              <p class="mt-1 flex items-center gap-2.5 text-2xl font-semibold tracking-tight">
+                {isPro ? 'Pro' : 'Free'}
+                <span class:list={['badge', isPro ? 'badge-brand' : 'badge-neutral']}>
+                  {sub.status && sub.status !== 'none' ? sub.status : isPro ? 'active' : 'current'}
+                </span>
+              </p>
+              {sub.current_period_end && (
+                <p class="mt-1.5 text-[13px] text-fg-muted">
+                  Renews {String(sub.current_period_end).slice(0, 10)}
+                </p>
+              )}
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+              {isPro ? (
+                <form method="POST" action="/api/billing/portal">
+                  <button type="submit" class="btn btn-secondary">
+                    <Icon name="billing" class="size-4" />
+                    Manage subscription
+                  </button>
+                </form>
+              ) : (
+                <form method="POST" action="/api/billing/checkout">
+                  <button type="submit" class="btn btn-primary">
+                    Upgrade to Pro — $19.99/mo
+                    <Icon name="arrowRight" class="size-4" />
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+
+          <div class="mt-6 grid gap-4 border-t-line pt-5 sm:grid-cols-2">
+            <div>
+              <div class="flex items-baseline justify-between text-sm">
+                <span class="text-fg-muted">Spaces</span>
+                <span class="nums font-medium">{usedSpaces} / {limits.spaces}</span>
+              </div>
+              <div
+                class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-muted"
+                role="progressbar"
+                aria-valuenow={Math.min(100, (usedSpaces / Math.max(1, limits.spaces)) * 100)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Spaces used"
+              >
+                <div
+                  class="h-full rounded-full bg-brand"
+                  style={`width:${Math.min(100, (usedSpaces / Math.max(1, limits.spaces)) * 100)}%`}
+                />
+              </div>
+            </div>
+            <div>
+              <div class="flex items-baseline justify-between text-sm">
+                <span class="text-fg-muted">Testimonials per space (avg)</span>
+                <span class="nums font-medium">{usedTestimonials}</span>
+              </div>
+              <div
+                class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-muted"
+                role="progressbar"
+                aria-valuenow={Math.min(100, usedLimit)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Average testimonial usage"
+              >
+                <div
+                  class="h-full rounded-full bg-brand"
+                  style={`width:${Math.min(100, usedLimit)}%`}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ---------- Plan comparison ---------- */}
+        <section class="mt-4 grid gap-4 sm:grid-cols-2">
+          <div class:list={['card card-pad', !isPro && 'border-brand-border ring-1 ring-brand/20']}>
+            <div class="flex items-center justify-between">
+              <h2 class="font-semibold">Free</h2>
+              {!isPro && <span class="badge badge-brand">Current</span>}
+            </div>
+            <p class="nums mt-2 text-2xl font-semibold">
+              $0<span class="text-sm font-normal text-fg-muted">/month</span>
+            </p>
+            <ul class="mt-4 space-y-2 text-sm text-fg-muted">
+              {
+                FEATURES_FREE.map((f) => (
+                  <li class="flex items-start gap-2.5">
+                    <Icon name="check" class="mt-0.5 size-4 shrink-0 text-success" />
+                    {f}
+                  </li>
+                ))
+              }
+            </ul>
+          </div>
+
+          <div class:list={['card card-pad', isPro && 'border-brand-border ring-1 ring-brand/20']}>
+            <div class="flex items-center justify-between">
+              <h2 class="font-semibold">Pro</h2>
+              {isPro && <span class="badge badge-brand">Current</span>}
+            </div>
+            <p class="nums mt-2 text-2xl font-semibold">
+              $19.99<span class="text-sm font-normal text-fg-muted">/month</span>
+            </p>
+            <ul class="mt-4 space-y-2 text-sm text-fg-muted">
+              {
+                FEATURES_PRO.map((f) => (
+                  <li class="flex items-start gap-2.5">
+                    <Icon name="check" class="mt-0.5 size-4 shrink-0 text-success" />
+                    {f}
+                  </li>
+                ))
+              }
+            </ul>
+          </div>
+        </section>
+
+        {/* ---------- Per-space usage ---------- */}
+        {
+          usage.length > 0 && (
+            <section class="card mt-4">
+              <div class="card-pad border-b-line pb-4">
+                <h2 class="font-semibold">Usage by space</h2>
+              </div>
+              <div class="table-wrap">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Space</th>
+                      <th scope="col" class="text-right">Testimonials</th>
+                      <th scope="col" class="text-right">Limit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usage.map((u) => {
+                      const pct = (Number(u.count) / Math.max(1, limits.testimonials_per_space)) * 100;
+                      return (
+                        <tr>
+                          <td>
+                            <a href={`/spaces/${u.space_id ?? ''}`} class="font-medium hover:underline">
+                              {u.name}
+                            </a>
+                          </td>
+                          <td class="nums text-right">{u.count}</td>
+                          <td class="text-right">
+                            <span
+                              class:list={[
+                                'badge',
+                                pct >= 90 ? 'badge-danger' : pct >= 70 ? 'badge-warning' : 'badge-neutral',
+                              ]}
+                            >
+                              {Math.round(pct)}%
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )
+        }
+      </>
+    )
+  }
+</AppLayout>

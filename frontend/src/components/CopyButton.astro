@@ -1,0 +1,52 @@
+---
+/**
+ * Copy-to-clipboard button. Works without JS by selecting the target text;
+ * the click handler upgrades to the async clipboard API when available.
+ */
+import Icon from './Icon.astro';
+
+interface Props {
+  /** id of the element whose text should be copied */
+  target: string;
+  label?: string;
+  class?: string;
+}
+const { target, label = 'Copy', class: className = 'btn btn-secondary btn-sm' } = Astro.props;
+---
+
+<button type="button" class={className} data-copy={target}>
+  <span data-copy-icon data-label="Copy" data-copied="Copied">
+    <Icon name="copy" class="size-4" />
+    <span data-copy-text>{label}</span>
+  </span>
+</button>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-copy]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const sel = btn.dataset.copy!;
+      const src =
+        sel.startsWith('#') || !sel ? document.querySelector(sel || null) : null;
+      const text = (src as HTMLElement | null)?.innerText?.trim();
+      if (!text) return;
+
+      const labelEl = btn.querySelector('[data-copy-text]');
+      const wrapper = btn.querySelector('[data-copy-icon]');
+      const original = labelEl?.textContent?.trim() ?? 'Copy';
+      const done = wrapper?.getAttribute('data-copied') ?? 'Copied';
+      let timer: ReturnType<typeof setTimeout>;
+      const restore = () => {
+        if (labelEl) labelEl.textContent = original;
+      };
+
+      try {
+        await navigator.clipboard.writeText(text);
+        if (labelEl) labelEl.textContent = done;
+        clearTimeout(timer);
+        timer = setTimeout(restore, 1800);
+      } catch {
+        restore();
+      }
+    });
+  });
+</script>

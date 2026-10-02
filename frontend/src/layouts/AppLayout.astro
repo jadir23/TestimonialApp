@@ -1,0 +1,288 @@
+---
+/**
+ * Page shell for authenticated app pages: sticky top bar, responsive sidebar on
+ * desktop, slide-over drawer on mobile. `user` is optional — unauthenticated
+ * pages (login/register) render a bare centred layout instead.
+ */
+import Icon from '../components/Icon.astro';
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  user?: { name: string; plan?: string } | null;
+  /** Current pathname for sidebar active state. */
+  path?: string;
+  wide?: boolean;
+}
+const { title = 'Testimonial', user = null, path = '', wide = false } = Astro.props;
+
+const NAV = [
+  { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { href: '/spaces', label: 'Spaces', icon: 'spaces' },
+  { href: '/inbox', label: 'Inbox', icon: 'inbox' },
+  { href: '/embeds', label: 'Embeds', icon: 'embed' },
+  { href: '/billing', label: 'Billing', icon: 'billing' },
+];
+const isActive = (href: string) =>
+  path === href || (href !== '/dashboard' && path.startsWith(href + '/'));
+
+const initials = (user?.name ?? '?')
+  .split(/\s+/)
+  .filter(Boolean)
+  .slice(0, 2)
+  .map((w: string) => w[0]!.toUpperCase())
+  .join('');
+const plan = (user?.plan ?? 'free') === 'pro' ? 'Pro' : 'Free';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title} · Testimonials</title>
+    <script is:inline src="/theme.js"></script>
+  </head>
+  <body class="min-h-screen">
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-brand focus:px-3 focus:py-2 focus:text-sm focus:text-brand-fg"
+      >Skip to content</a
+    >
+
+<div class="min-h-screen lg:flex">
+  {/* ---------- Desktop sidebar ---------- */}
+  {user && (
+    <aside
+      class="hidden w-60 shrink-0 flex-col border-r-line bg-surface lg:flex"
+      aria-label="Main navigation"
+    >
+      <div class="flex h-14 items-center gap-2 px-5">
+        <span
+          class="flex size-7 items-center justify-center rounded-lg bg-brand text-brand-fg"
+          aria-hidden="true"
+        >
+          <Icon name="quote" class="size-4" />
+        </span>
+        <span class="text-[15px] font-semibold tracking-tight">Testimonials</span>
+      </div>
+
+      <nav class="flex-1 space-y-0.5 px-3 py-2">
+        {
+          NAV.map((item) => (
+            <a
+              href={item.href}
+              aria-current={isActive(item.href) ? 'page' : undefined}
+              class:list={[
+                'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition',
+                isActive(item.href)
+                  ? 'bg-brand-soft text-brand'
+                  : 'text-fg-muted hover:bg-surface-hover hover:text-fg',
+              ]}
+            >
+              <Icon name={item.icon} class="size-[18px] shrink-0" />
+              {item.label}
+            </a>
+          ))
+        }
+      </nav>
+
+      <div class="border-t-line p-3">
+        <div class="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
+          <span
+            class="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand"
+            aria-hidden="true">{initials}</span
+          >
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-[13px] font-medium">{user?.name}</span>
+          </span>
+          <span
+            class:list={[
+              'badge shrink-0',
+              plan === 'Pro' ? 'badge-brand' : 'badge-neutral',
+            ]}>{plan}</span
+          >
+        </div>
+        <div class="mt-1 flex items-center gap-1">
+          <form method="POST" action="/api/logout" class="flex-1">
+            <button
+              type="submit"
+              class="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-fg-muted transition hover:bg-surface-hover hover:text-danger"
+            >
+              <Icon name="logout" class="size-[18px]" />
+              Sign out
+            </button>
+          </form>
+          <button
+            type="button"
+            class="btn btn-ghost btn-icon"
+            data-theme-toggle
+            aria-label="Toggle dark mode"
+            title="Toggle dark mode"
+          >
+            <Icon name="sun" class="size-[18px] dark:hidden" />
+            <Icon name="moon" class="hidden size-[18px] dark:block" />
+          </button>
+        </div>
+      </div>
+    </aside>
+  )}
+
+  {/* ---------- Main column ---------- */}
+  <div class="flex min-w-0 flex-1 flex-col">
+    {/* Top bar (mobile nav + title) */}
+    {
+      user && (
+        <header class="sticky top-0 z-30 flex h-14 items-center gap-3 border-b-line bg-canvas/85 px-4 backdrop-blur-md lg:hidden">
+          <button
+            type="button"
+            id="nav-open"
+            class="btn btn-ghost btn-icon -ml-1.5"
+            aria-label="Open navigation"
+            aria-expanded="false"
+            aria-controls="mobile-nav"
+          >
+            <Icon name="menu" class="size-5" />
+          </button>
+          <span class="truncate text-[15px] font-semibold">{title}</span>
+          <button
+            type="button"
+            class="btn btn-ghost btn-icon ml-auto"
+            data-theme-toggle
+            aria-label="Toggle dark mode"
+          >
+            <Icon name="sun" class="size-5 dark:hidden" />
+            <Icon name="moon" class="hidden size-5 dark:block" />
+          </button>
+        </header>
+      )
+    }
+
+    {/* Mobile drawer */}
+    {
+      user && (
+        <div id="mobile-nav" class="fixed inset-0 z-50 hidden lg:hidden">
+          <div
+            class="absolute inset-0 bg-black/45 opacity-0 transition-opacity duration-200"
+            data-nav-overlay
+          />
+          <nav
+            class="absolute inset-y-0 left-0 flex w-72 max-w-[85%] -translate-x-full flex-col bg-surface shadow-lg transition-transform duration-200"
+            aria-label="Mobile navigation"
+            data-nav-panel
+          >
+            <div class="flex h-14 items-center gap-2 px-4">
+              <span
+                class="flex size-7 items-center justify-center rounded-lg bg-brand text-brand-fg"
+                aria-hidden="true"
+              >
+                <Icon name="quote" class="size-4" />
+              </span>
+              <span class="text-[15px] font-semibold">Testimonials</span>
+              <button
+                type="button"
+                class="btn btn-ghost btn-icon ml-auto"
+                data-nav-close
+                aria-label="Close navigation"
+              >
+                <Icon name="x" class="size-5" />
+              </button>
+            </div>
+            <div class="flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
+              {NAV.map((item) => (
+                <a
+                  href={item.href}
+                  aria-current={isActive(item.href) ? 'page' : undefined}
+                  class:list={[
+                    'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition',
+                    isActive(item.href)
+                      ? 'bg-brand-soft text-brand'
+                      : 'text-fg-muted hover:bg-surface-hover hover:text-fg',
+                  ]}
+                >
+                  <Icon name={item.icon} class="size-[18px] shrink-0" />
+                  {item.label}
+                </a>
+              ))}
+            </div>
+            <div class="border-t-line p-3">
+              <div class="mb-1 flex items-center gap-2.5 px-2 py-1.5">
+                <span
+                  class="flex size-8 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand"
+                  aria-hidden="true">{initials}</span
+                >
+                <span class="truncate text-[13px] font-medium">{user?.name}</span>
+              </div>
+              <form method="POST" action="/api/logout">
+                <button
+                  type="submit"
+                  class="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-fg-muted hover:bg-surface-hover hover:text-danger"
+                >
+                  <Icon name="logout" class="size-[18px]" />
+                  Sign out
+                </button>
+              </form>
+            </div>
+          </nav>
+        </div>
+      )
+    }
+
+    <main
+      class:list={[
+        'mx-auto w-full flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8',
+        wide ? 'max-w-7xl' : 'max-w-5xl',
+      ]}
+    >
+      <slot />
+    </main>
+  </div>
+</div>
+  </body>
+</html>
+
+<script>
+  // Desktop: theme toggle lives in the sidebar footer area via [data-theme-toggle];
+  // mobile: in the top bar. One delegated handler covers every instance.
+  document.addEventListener('click', (e) => {
+    const t = (e.target as HTMLElement).closest('[data-theme-toggle]');
+    if (!t) return;
+    const root = document.documentElement;
+    const next = root.classList.contains('dark') ? 'light' : 'dark';
+    root.classList.toggle('dark', next === 'dark');
+    root.style.colorScheme = next;
+    try {
+      localStorage.setItem('ts-theme', next);
+    } catch {}
+  });
+
+  // Mobile drawer
+  const wrap = document.getElementById('mobile-nav');
+  const panel = document.querySelector<HTMLElement>('[data-nav-panel]');
+  const overlay = document.querySelector<HTMLElement>('[data-nav-overlay]');
+  const openBtn = document.getElementById('nav-open');
+
+  function setNav(open: boolean) {
+    if (!wrap || !panel || !overlay) return;
+    wrap.classList.toggle('hidden', !open);
+    openBtn?.setAttribute('aria-expanded', String(open));
+    document.body.style.overflow = open ? 'hidden' : '';
+    // next frame so the transition runs from the off-screen position
+    requestAnimationFrame(() => {
+      panel.classList.toggle('-translate-x-full', !open);
+      overlay.classList.toggle('opacity-0', !open);
+    });
+    if (open) panel.querySelector<HTMLElement>('a, button')?.focus();
+  }
+
+  openBtn?.addEventListener('click', () => setNav(true));
+  document.querySelector('[data-nav-close]')?.addEventListener('click', () => setNav(false));
+  overlay?.addEventListener('click', () => setNav(false));
+  panel?.querySelectorAll('a').forEach((a) =>
+    a.addEventListener('click', () => setNav(false))
+  );
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !wrap?.classList.contains('hidden')) setNav(false);
+  });
+</script>

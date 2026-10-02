@@ -1,0 +1,29 @@
+---
+import Icon from './Icon.astro';
+
+interface Props {
+  icon?: string;
+  title: string;
+  description?: string;
+  /** Slot for the call-to-action button. */
+}
+const { icon = 'sparkles', title, description } = Astro.props;
+---
+
+<div class="card card-pad text-center">
+  <span
+    class="mx-auto flex size-11 items-center justify-center rounded-full bg-brand-soft text-brand"
+    aria-hidden="true"
+  >
+    <Icon name={icon} class="size-5" />
+  </span>
+  <h3 class="mt-4 font-semibold">{title}</h3>
+  {description && <p class="mx-auto mt-1.5 max-w-sm text-sm text-fg-muted">{description}</p>}
+  {
+    Astro.slots.has('default') && (
+      <div class="mt-5 flex flex-wrap justify-center gap-2">
+        <slot />
+      </div>
+    )
+  }
+</div>

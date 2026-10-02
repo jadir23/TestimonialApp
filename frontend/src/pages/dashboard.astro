@@ -1,80 +1,254 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-const cookie = Astro.request.headers.get('cookie') ?? '';
-const ODOO = process.env.ODOO_URL ?? 'http://localhost:8069';
+import AppLayout from '../layouts/AppLayout.astro';
+import PageHeader from '../components/PageHeader.astro';
+import Alert from '../components/Alert.astro';
+import EmptyState from '../components/EmptyState.astro';
+import Icon from '../components/Icon.astro';
+import { sessionCookie, getUser, apiGet } from '../lib/server';
+
+const cookie = sessionCookie(Astro.request);
+const user = await getUser(cookie);
+if (!user) return Astro.redirect('/login');
+
 const range = Astro.url.searchParams.get('range') || '30d';
 const from = Astro.url.searchParams.get('from') || '';
 const to = Astro.url.searchParams.get('to') || '';
-let user = null; let stats: any = null; let error = '';
-try {
-  const me = await fetch(`${ODOO}/api/auth/me`, { headers: { Cookie: cookie } });
-  const mj = await me.json();
-  if (!me.ok) return Astro.redirect('/login');
-  user = mj.data.user;
-  const q = new URLSearchParams({ range });
-  if (range === 'custom' && from && to) { q.set('from', from); q.set('to', to); }
-  const r = await fetch(`${ODOO}/api/dashboard/stats?${q}`, { headers: { Cookie: cookie } });
-  const j = await r.json();
-  if (r.ok) stats = j.data; else error = j.error || 'Could not load stats.';
-} catch { error = 'Backend unreachable.'; }
-const max = Math.max(1, ...(stats?.series ?? []).map((p: any) => p.count));
-function rangeHref(r: string) { return `/dashboard?range=${r}`; }
----
-<BaseLayout title="Dashboard" user={user}>
-  <div class="flex flex-wrap items-center justify-between gap-2">
-    <h1 class="text-2xl font-bold">Dashboard</h1>
-    <div class="flex items-center gap-2 text-sm">
-      <a href={rangeHref('7d')} class={`rounded px-2 py-1 ${range === '7d' ? 'bg-black text-white' : 'border bg-white'}`}>7d</a>
-      <a href={rangeHref('30d')} class={`rounded px-2 py-1 ${range === '30d' ? 'bg-black text-white' : 'border bg-white'}`}>30d</a>
-      <a href={rangeHref('90d')} class={`rounded px-2 py-1 ${range === '90d' ? 'bg-black text-white' : 'border bg-white'}`}>90d</a>
-      <form method="GET" action="/dashboard" class="flex items-center gap-1">
-        <input type="hidden" name="range" value="custom" />
-        <input type="date" name="from" value={from} class="rounded border px-1 py-1 text-xs" />
-        <input type="date" name="to" value={to} class="rounded border px-1 py-1 text-xs" />
-        <button class="rounded border bg-white px-2 py-1 text-xs">Go</button>
-      </form>
-    </div>
-  </div>
-  {error && <p class="mt-3 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
-  {stats && (
-    <>
-      <div class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div class="rounded border bg-white p-4"><div class="text-sm text-gray-500">Spaces</div><div class="text-2xl font-bold">{stats.totals.spaces}<span class="text-sm font-normal text-gray-500">/{stats.space_limit}</span></div></div>
-        <div class="rounded border bg-white p-4"><div class="text-sm text-gray-500">Testimonials</div><div class="text-2xl font-bold">{stats.totals.testimonials}</div></div>
-        <div class="rounded border bg-white p-4"><div class="text-sm text-gray-500">Customers</div><div class="text-2xl font-bold">{stats.totals.customers}</div></div>
-        <div class="rounded border bg-white p-4"><div class="text-sm text-gray-500">In period</div><div class="text-2xl font-bold">{stats.totals.in_window}</div><div class="text-xs text-gray-500">{stats.from} → {stats.to}</div></div>
-      </div>
 
-      <div class="mt-4 rounded border bg-white p-4">
-        <h2 class="font-bold">Collected per day</h2>
-        {stats.totals.in_window === 0 ? (
-          <p class="mt-2 text-sm text-gray-500">No testimonials in this period yet. <a href="/spaces" class="underline">Share a space link</a> to collect some.</p>
-        ) : (
-          <div class="mt-2 flex h-28 items-end gap-[2px]">
-            {stats.series.map((p: any) => <div title={`${p.date}: ${p.count}`} class="flex-1 rounded-t bg-black" style={`height:${Math.max(3, Math.round(100 * p.count / max))}%`} />)}
+const q = new URLSearchParams({ range });
+if (range === 'custom' && from && to) {
+  q.set('from', from);
+  q.set('to', to);
+}
+const { ok, data: stats, error } = await apiGet('/api/dashboard/stats', cookie, q);
+
+const RANGES = [
+  { key: '7d', label: '7 days' },
+  { key: '30d', label: '30 days' },
+  { key: '90d', label: '90 days' },
+];
+const isCustom = range === 'custom';
+const activeRange = isCustom && from && to ? `${from} → ${to}` : (RANGES.find((r) => r.key === range)?.label ?? '30 days');
+
+const series: { date: string; count: number }[] = stats?.series ?? [];
+const max = Math.max(1, ...series.map((p) => Number(p.count) || 0));
+const totals = stats?.totals ?? { spaces: 0, testimonials: 0, customers: 0, in_window: 0 };
+const usage: any[] = stats?.usage ?? [];
+const plan = stats?.plan ?? user.plan ?? 'free';
+const firstName = (user.name ?? '').split(' ')[0];
+
+const CARDS = [
+  { key: 'spaces', label: 'Spaces', value: totals.spaces, sub: stats ? `of ${stats.space_limit}` : '', icon: 'spaces' },
+  { key: 'testimonials', label: 'Testimonials', value: totals.testimonials, sub: 'all time', icon: 'quote' },
+  { key: 'customers', label: 'Customers', value: totals.customers, sub: 'unique submitters', icon: 'users' },
+  { key: 'window', label: 'This period', value: totals.in_window, sub: activeRange, icon: 'chart' },
+];
+---
+
+<AppLayout title="Dashboard" user={user} path={Astro.url.pathname}>
+  <PageHeader
+    title={`Welcome back, ${firstName || 'there'}`}
+    description="Here's how your testimonial collection is tracking."
+  >
+    <a slot="actions" href="/spaces/new" class="btn btn-primary btn-sm">
+      <Icon name="plus" class="size-4" />
+      New space
+    </a>
+  </PageHeader>
+
+  {error && <div class="mb-5"><Alert type="danger">{error}</Alert></div>}
+
+  {
+    ok && stats && (
+      <>
+        {/* ---------- Stat cards ---------- */}
+        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {CARDS.map((c) => (
+            <div class="card card-pad">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[13px] font-medium text-fg-muted">{c.label}</span>
+                <Icon name={c.icon} class="size-4 shrink-0 text-fg-subtle" />
+              </div>
+              <p class="nums mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+                {c.value}
+                {c.key === 'spaces' && (
+                  <span class="text-base font-normal text-fg-subtle">{c.sub}</span>
+                )}
+              </p>
+              <p class="mt-0.5 truncate text-xs text-fg-subtle">{c.sub}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* ---------- Range filter ---------- */}
+        <div class="card mt-4 flex flex-wrap items-center gap-2 p-3">
+          <div
+            class="flex items-center gap-1 rounded-lg bg-surface-muted p-1"
+            role="group"
+            aria-label="Date range"
+          >
+            {RANGES.map((r) => (
+              <a
+                href={`/dashboard?range=${r.key}`}
+                aria-current={range === r.key ? 'true' : undefined}
+                class:list={[
+                  'rounded-md px-3 py-1.5 text-[13px] font-medium transition',
+                  range === r.key
+                    ? 'bg-surface text-fg shadow-card'
+                    : 'text-fg-muted hover:text-fg',
+                ]}
+              >
+                {r.label}
+              </a>
+            ))}
+          </div>
+
+          <form method="GET" action="/dashboard" class="flex items-center gap-2">
+            <input type="hidden" name="range" value="custom" />
+            <label class="sr-only" for="from">From date</label>
+            <input
+              id="from"
+              type="date"
+              name="from"
+              value={from}
+              class="input h-8 w-auto py-1 text-[13px]"
+            />
+            <span class="text-fg-subtle" aria-hidden="true">→</span>
+            <label class="sr-only" for="to">To date</label>
+            <input
+              id="to"
+              type="date"
+              name="to"
+              value={to}
+              class="input h-8 w-auto py-1 text-[13px]"
+            />
+            <button type="submit" class="btn btn-secondary btn-sm">Apply</button>
+          </form>
+        </div>
+
+        {/* ---------- Chart ---------- */}
+        <section class="card card-pad mt-4">
+          <div class="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 class="font-semibold">Collected per day</h2>
+            <span class="nums text-xs text-fg-subtle">
+              Peak {max} in a day
+            </span>
+          </div>
+
+          {totals.in_window === 0 ? (
+            <p class="mt-3 text-sm text-fg-muted">
+              No testimonials collected in this period yet.{' '}
+              <a href="/spaces" class="link">Share a space link</a> to start
+              collecting.
+            </p>
+          ) : (
+            <>
+              <div
+                class="mt-5 flex h-36 items-end gap-[3px]"
+                role="img"
+                aria-label={`Bar chart of testimonials collected per day for ${activeRange}. Peak ${max} in a day.`}
+              >
+                {series.map((p) => (
+                  <div
+                    class="group relative flex-1 rounded-t-sm bg-brand/85 transition hover:bg-brand"
+                    style={`height:${Math.max(4, Math.round(100 * ((Number(p.count) || 0) / max)))}%`}
+                  >
+                    <span class="pointer-events-none absolute -top-7 left-1/2 hidden -translate-x-1/2 rounded bg-fg px-1.5 py-0.5 text-[11px] whitespace-nowrap text-canvas group-hover:block">
+                      {p.count} · {p.date}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div class="mt-2 flex justify-between text-[11px] text-fg-subtle">
+                <span>{series[0]?.date ?? ''}</span>
+                <span>{series[series.length - 1]?.date ?? ''}</span>
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* ---------- Space usage ---------- */}
+        <section class="card card-pad mt-4">
+          <h2 class="font-semibold">Space usage</h2>
+          {usage.length === 0 ? (
+            <p class="mt-3 text-sm text-fg-muted">
+              No spaces yet.{' '}
+              <a href="/spaces/new" class="link">Create your first space</a> to
+              start collecting.
+            </p>
+          ) : (
+            <ul class="mt-4 space-y-4">
+              {usage.map((u) => {
+                const pct = Math.min(100, Number(u.pct) || 0);
+                const near = pct >= 90;
+                return (
+                  <li>
+                    <div class="flex items-baseline justify-between gap-3 text-sm">
+                      <a href={`/spaces/${u.id}`} class="font-medium hover:underline">
+                        {u.name}
+                      </a>
+                      <span
+                        class:list={[
+                          'nums shrink-0 text-[13px]',
+                          near ? 'font-semibold text-danger' : 'text-fg-muted',
+                        ]}
+                      >
+                        {u.count}/{u.limit}
+                      </span>
+                    </div>
+                    <div
+                      class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-muted"
+                      role="progressbar"
+                      aria-valuenow={pct}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`${u.name} usage`}
+                    >
+                      <div
+                        class:list={[
+                          'h-full rounded-full transition-[width]',
+                          near ? 'bg-danger' : 'bg-brand',
+                        ]}
+                        style={`width:${pct}%`}
+                      />
+                    </div>
+                    {near && (
+                      <p class="mt-1.5 text-xs text-danger">
+                        Almost full —{' '}
+                        <a href="/billing" class="underline">upgrade to Pro</a> for
+                        more room.
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        {plan === 'free' && (
+          <div class="mt-4">
+            <Alert type="info" title="You're on the Free plan">
+              Free includes 3 spaces and 100 testimonials per space.{' '}
+              <a href="/billing" class="font-medium underline">See Pro options</a>.
+            </Alert>
           </div>
         )}
-      </div>
+      </>
+    )
+  }
 
-      <div class="mt-4 rounded border bg-white p-4">
-        <h2 class="font-bold">Space usage</h2>
-        {stats.usage.length === 0 ? (
-          <p class="mt-2 text-sm text-gray-500">No spaces yet. <a href="/spaces/new" class="underline">Create your first space</a>.</p>
-        ) : (
-          <ul class="mt-2 space-y-2 text-sm">
-            {stats.usage.map((u: any) => (
-              <li>
-                <div class="flex justify-between"><a href={`/spaces/${u.id}`} class="underline">{u.name}</a><span class={u.pct >= 90 ? 'text-red-600 font-bold' : ''}>{u.count}/{u.limit}{u.pct >= 90 ? ' — almost full, upgrade to Pro' : ''}</span></div>
-                <div class="h-2 rounded bg-gray-100"><div class={`h-2 rounded ${u.pct >= 90 ? 'bg-red-500' : 'bg-green-500'}`} style={`width:${Math.min(100, u.pct)}%`} /></div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {stats.plan === 'free' && (
-        <div class="mt-4 rounded border bg-yellow-50 p-3 text-sm">Upgrade to Pro to collect more testimonials and create more spaces. <a href="/billing" class="underline">View billing</a></div>
-      )}
-    </>
-  )}
-</BaseLayout>
+  {
+    !ok && !error && (
+      <EmptyState
+        icon="chart"
+        title="No data yet"
+        description="Create a space and share its link to start collecting testimonials."
+      >
+        <a href="/spaces/new" class="btn btn-primary btn-sm">
+          <Icon name="plus" class="size-4" />
+          Create a space
+        </a>
+      </EmptyState>
+    )
+  }
+</AppLayout>

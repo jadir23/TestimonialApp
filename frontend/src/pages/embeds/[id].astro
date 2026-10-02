@@ -1,77 +1,224 @@
 ---
-import BaseLayout from '../../layouts/BaseLayout.astro';
+import AppLayout from '../../layouts/AppLayout.astro';
+import Alert from '../../components/Alert.astro';
+import Field from '../../components/Field.astro';
+import Icon from '../../components/Icon.astro';
+import CopyButton from '../../components/CopyButton.astro';
+import { sessionCookie, getUser, apiGet, publicUrl } from '../../lib/server';
+
 const { id } = Astro.params;
-const cookie = Astro.request.headers.get('cookie') ?? '';
-const ODOO = process.env.ODOO_URL ?? 'http://localhost:8069';
-const APP = process.env.PUBLIC_APP_URL ?? Astro.url.origin;
-let user = null; let embed: any = null;
-try {
-  const me = await fetch(`${ODOO}/api/auth/me`, { headers: { Cookie: cookie } });
-  const mj = await me.json();
-  if (!me.ok) return Astro.redirect('/login');
-  user = mj.data.user;
-  const r = await fetch(`${ODOO}/api/embeds/${id}`, { headers: { Cookie: cookie } });
-  const j = await r.json();
-  if (r.ok) embed = j.data.embed; else return Astro.redirect('/embeds');
-} catch { return Astro.redirect('/embeds'); }
-const saved = Astro.url.searchParams.get('saved');
-const snippet = embed.snippet.replace('async"></script>', `async"></script>`).replace('/embed.js', `${APP}/embed.js`);
-const previewJson = JSON.stringify({ embed, testimonials: embed.preview ?? [] });
+const cookie = sessionCookie(Astro.request);
+const user = await getUser(cookie);
+if (!user) return Astro.redirect('/login');
+
+const { ok, data } = await apiGet(`/api/embeds/${id}`, cookie);
+if (!ok || !data?.embed) return Astro.redirect('/embeds');
+const embed = data.embed;
+
+const appUrl = publicUrl('') || Astro.url.origin;
+const saved = Astro.url.searchParams.get('saved') === '1';
+const error = Astro.url.searchParams.get('error');
+const publishedCount = (embed.preview ?? []).length;
+
+// Backend builds the snippet with whatever app_url it was given; normalise it
+// to the public origin so the pasted code works on a customer's site.
+const snippet = String(embed.snippet ?? '').replace(
+  /src="[^"]*\/embed\.js"/,
+  `src="${appUrl}/embed.js"`
+);
 ---
-<BaseLayout title={`Embed — ${embed.name}`} user={user}>
-  <h1 class="text-2xl font-bold">{embed.name} <span class="text-sm font-normal text-gray-500">· {embed.space_name}</span></h1>
-  {saved && <p class="mt-2 rounded bg-green-50 p-2 text-sm">Saved.</p>}
-  <div class="mt-3 grid gap-4 md:grid-cols-2">
-    <form method="POST" action={`/api/embeds/update?id=${embed.id}`} id="cfg" class="space-y-2 rounded border bg-white p-4 text-sm">
-      <label class="block">Name<input name="name" value={embed.name} class="mt-1 w-full rounded border px-2 py-1" /></label>
-      <div class="grid grid-cols-2 gap-2">
-        <label>Layout<select name="layout" class="mt-1 w-full rounded border px-2 py-1">
-          <option value="grid" selected={embed.layout === 'grid'}>Grid/Masonry</option>
-          <option value="carousel" selected={embed.layout === 'carousel'}>Carousel</option></select></label>
-        <label>Appearance<select name="appearance" class="mt-1 w-full rounded border px-2 py-1">
-          {['light','dark','auto'].map((a) => <option value={a} selected={embed.appearance === a}>{a}</option>)}</select></label>
-        <label>Animation<select name="animation" class="mt-1 w-full rounded border px-2 py-1">
-          {['none','fade','slide'].map((a) => <option value={a} selected={embed.animation === a}>{a}</option>)}</select></label>
-        <label>Background<select name="background" class="mt-1 w-full rounded border px-2 py-1">
-          <option value="transparent" selected={embed.background === 'transparent'}>Transparent</option>
-          <option value="custom" selected={embed.background === 'custom'}>Custom color</option></select></label>
-        <label>Count<select name="testimonial_limit" class="mt-1 w-full rounded border px-2 py-1">
-          {[3,6,9,0].map((n) => <option value={n} selected={embed.testimonial_limit === n}>{n === 0 ? 'All' : n}</option>)}</select></label>
-        <label>BG color<input type="color" name="bg_color" value={embed.bg_color} class="mt-1 h-8 w-full rounded border" /></label>
+
+<AppLayout title={`Embed — ${embed.name}`} user={user} path="/embeds" wide>
+  <nav class="mb-4 text-sm text-fg-muted" aria-label="Breadcrumb">
+    <a href="/embeds" class="link-muted hover:text-fg">Embeds</a>
+    <span class="mx-1.5 text-fg-subtle" aria-hidden="true">/</span>
+    <span class="truncate text-fg">{embed.name}</span>
+  </nav>
+
+  <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div class="min-w-0">
+      <h1 class="text-2xl font-semibold tracking-tight">{embed.name}</h1>
+      <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-fg-muted">
+        <span>{embed.space_name}</span>
+        <span aria-hidden="true">·</span>
+        <span class="nums">{publishedCount} published</span>
+      </p>
+    </div>
+    <a href="/embeds" class="btn btn-ghost btn-sm">
+      <Icon name="arrowRight" class="size-4 rotate-180" />
+      All embeds
+    </a>
+  </div>
+
+  {saved && <div class="mb-5"><Alert type="success">Widget saved.</Alert></div>}
+  {error && <div class="mb-5"><Alert type="danger">{error}</Alert></div>}
+
+  {publishedCount === 0 && (
+    <div class="mb-5">
+      <Alert type="warning" title="No published testimonials yet">
+        This widget will show an empty state. Publish some testimonials in your{' '}
+        <a href="/inbox" class="font-medium underline">inbox</a> first.
+      </Alert>
+    </div>
+  )}
+
+  <div class="grid gap-4 xl:grid-cols-[22rem_1fr] xl:items-start">
+    <!-- ---------- Config ---------- -->
+    <form
+      method="POST"
+      action={`/api/embeds/update?id=${embed.id}`}
+      id="cfg"
+      class="card card-pad space-y-5"
+    >
+      <Field label="Widget name" name="name" required>
+        <input id="name" class="input" name="name" value={embed.name} required maxlength="80" />
+      </Field>
+
+      <fieldset class="border-t-line pt-5">
+        <legend class="text-sm font-semibold">Appearance</legend>
+        <div class="mt-4 space-y-4">
+          <Field label="Layout" name="layout">
+            <select id="layout" class="input" name="layout" data-cfg>
+              <option value="grid" selected={embed.layout === 'grid'}>Grid / masonry</option>
+              <option value="carousel" selected={embed.layout === 'carousel'}>Carousel</option>
+            </select>
+          </Field>
+
+          <Field label="Theme" name="appearance">
+            <select id="appearance" class="input" name="appearance" data-cfg>
+              <option value="light" selected={embed.appearance === 'light'}>Light</option>
+              <option value="dark" selected={embed.appearance === 'dark'}>Dark</option>
+              <option value="auto" selected={embed.appearance === 'auto'}>Match site</option>
+            </select>
+          </Field>
+
+          <Field label="Animation" name="animation">
+            <select id="animation" class="input" name="animation" data-cfg>
+              <option value="none" selected={embed.animation === 'none'}>None</option>
+              <option value="fade" selected={embed.animation === 'fade'}>Fade in</option>
+              <option value="slide" selected={embed.animation === 'slide'}>Slide in</option>
+            </select>
+          </Field>
+
+          <Field label="How many" name="testimonial_limit">
+            <select id="testimonial_limit" class="input" name="testimonial_limit" data-cfg>
+              <option value="3" selected={embed.testimonial_limit === 3}>3</option>
+              <option value="6" selected={embed.testimonial_limit === 6}>6</option>
+              <option value="9" selected={embed.testimonial_limit === 9}>9</option>
+              <option value="0" selected={embed.testimonial_limit === 0}>All published</option>
+            </select>
+          </Field>
+        </div>
+      </fieldset>
+
+      <fieldset class="border-t-line pt-5">
+        <legend class="text-sm font-semibold">Background</legend>
+        <div class="mt-4 space-y-4">
+          <Field label="Style" name="background">
+            <select id="background" class="input" name="background" data-cfg>
+              <option value="transparent" selected={embed.background === 'transparent'}>Transparent</option>
+              <option value="custom" selected={embed.background === 'custom'}>Custom colour</option>
+            </select>
+          </Field>
+          <Field label="Colour" name="bg_color">
+            <input
+              type="color"
+              id="bg_color"
+              name="bg_color"
+              value={embed.bg_color}
+              class="h-9 w-full cursor-pointer rounded-lg border-line-strong bg-surface p-1"
+              data-cfg
+            />
+          </Field>
+        </div>
+      </fieldset>
+
+      <div class="flex gap-2 border-t-line pt-5">
+        <button type="submit" class="btn btn-primary btn-sm">
+          <Icon name="check" class="size-4" />
+          Save
+        </button>
       </div>
-      <div class="flex gap-2"><button class="rounded bg-black px-4 py-1.5 text-white">Save</button><a href="/embeds" class="rounded border px-4 py-1.5">Back</a></div>
     </form>
-    <div class="rounded border bg-gray-50 p-2">
-      <p class="px-2 py-1 text-xs uppercase tracking-wide text-gray-500">Live preview ({(embed.preview ?? []).length} published)</p>
-      <div id="preview"></div>
+
+    <div class="space-y-4">
+      <!-- ---------- Live preview ---------- -->
+      <section class="card overflow-hidden">
+        <div class="flex items-center justify-between gap-2 border-b-line px-4 py-2.5">
+          <p class="text-xs font-semibold tracking-wide text-fg-subtle uppercase">
+            Live preview
+          </p>
+          <p class="text-xs text-fg-subtle">Updates as you change settings</p>
+        </div>
+        <div class="bg-canvas p-4 sm:p-6">
+          <div id="preview"></div>
+        </div>
+      </section>
+
+      <!-- ---------- Snippet ---------- -->
+      <section id="snippet" class="card card-pad scroll-mt-6">
+        <h2 class="font-semibold">Embed code</h2>
+        <p class="mt-1 text-sm text-fg-muted">
+          Paste this anywhere in your site's HTML. It loads one small script and
+          pulls published testimonials.
+        </p>
+        <pre
+          id="embed-snippet"
+          class="mt-4 overflow-x-auto rounded-lg bg-fg p-4 font-mono text-[13px] leading-relaxed text-canvas"><code>{snippet}</code></pre>
+        <div class="mt-3">
+          <CopyButton target="#embed-snippet" label="Copy embed code" />
+        </div>
+      </section>
+
+      <!-- ---------- Danger zone ---------- -->
+      <section class="card card-pad border-danger/30">
+        <h2 class="font-semibold text-danger">Delete widget</h2>
+        <p class="mt-1 text-sm text-fg-muted">
+          The widget stops working immediately. Your testimonials are not affected.
+        </p>
+        <form
+          method="POST"
+          action={`/api/embeds/delete?id=${embed.id}`}
+          onsubmit="return confirm('Delete this widget?')"
+          class="mt-4"
+        >
+          <button type="submit" class="btn btn-danger btn-sm">
+            <Icon name="trash" class="size-4" />
+            Delete widget
+          </button>
+        </form>
+      </section>
     </div>
   </div>
-  <div class="mt-4 rounded border bg-white p-4">
-    <h2 class="font-bold text-sm">Embed code</h2>
-    <pre class="mt-1 overflow-x-auto rounded bg-gray-900 p-3 text-xs text-green-200">{snippet}</pre>
-    <button id="copy" class="mt-2 rounded border px-3 py-1 text-sm">Copy snippet</button>
-    <form method="POST" action={`/api/embeds/delete?id=${embed.id}`} onsubmit="return confirm('Delete widget?')" class="mt-2"><button class="text-sm text-red-600 underline">Delete widget</button></form>
-  </div>
-  <script src="/embed.js" is:inline></script>
-  <script define:vars={{ previewJson }}>
-    const data = JSON.parse(previewJson);
-    const form = document.getElementById('cfg');
-    const prev = document.getElementById('preview');
-    function current() {
-      const fd = new FormData(form);
-      const limit = Number(fd.get('testimonial_limit'));
-      const all = data.testimonials;
-      return { embed: {
-        layout: fd.get('layout'), appearance: fd.get('appearance'),
-        animation: fd.get('animation'), background: fd.get('background'),
+</AppLayout>
+
+<script src="/embed.js" is:inline></script>
+<script define:vars={{ preview: embed.preview ?? [] }}>
+  const testimonials = JSON.parse(preview);
+  const form = document.getElementById('cfg');
+  const target = document.getElementById('preview');
+
+  function current() {
+    const fd = new FormData(form);
+    const limit = Number(fd.get('testimonial_limit'));
+    const list = limit === 0 ? testimonials.slice(0, 50) : testimonials.slice(0, limit);
+    return {
+      embed: {
+        layout: fd.get('layout'),
+        appearance: fd.get('appearance'),
+        animation: fd.get('animation'),
+        background: fd.get('background'),
         bg_color: fd.get('bg_color'),
-      }, testimonials: limit === 0 ? all.slice(0, 50) : all.slice(0, limit) };
-    }
-    function draw() { window.TSWidget.render(prev, current()); }
-    form.addEventListener('input', draw); draw();
-    document.getElementById('copy').addEventListener('click', async (e) => {
-      const txt = e.target.closest('div').querySelector('pre').innerText;
-      await navigator.clipboard.writeText(txt); e.target.innerText = 'Copied!';
-    });
-  </script>
-</BaseLayout>
+      },
+      testimonials: list,
+    };
+  }
+
+  function draw() {
+    if (window.TSWidget?.render) window.TSWidget.render(target, current());
+  }
+
+  form?.addEventListener('input', draw);
+  form?.addEventListener('change', draw);
+  if (window.TSWidget?.render) draw();
+</script>

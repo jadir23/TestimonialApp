@@ -1,18 +1,57 @@
 ---
-const { slug } = Astro.params;
 import '../../../styles/global.css';
+
+const { slug } = Astro.params;
 ---
+
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><link rel="icon" type="image/svg+xml" href="/favicon.svg" /><title>Thank you</title></head>
-<body class="min-h-screen bg-gray-50">
-  <main class="mx-auto max-w-md px-4 py-16 text-center">
-    <div class="rounded-xl bg-white p-8 shadow">
-      <div class="text-4xl">🎉</div>
-      <h1 class="mt-2 text-2xl font-bold">Thank you!</h1>
-      <p class="mt-1 text-gray-600">Your testimonial has been received. You just made someone's day!</p>
-      <a href={`/s/${slug}`} class="mt-4 inline-block text-sm underline">Back to {slug}</a>
-    </div>
-  </main>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Thank you!</title>
+    <meta name="robots" content="noindex" />
+    <script is:inline src="/theme.js"></script>
+  </head>
+  <body class="flex min-h-screen items-center justify-center bg-canvas px-4 font-sans">
+    <main class="w-full max-w-md py-12 text-center">
+      <span
+        class="mx-auto flex size-14 items-center justify-center rounded-full bg-success-soft text-success"
+        aria-hidden="true"
+      >
+        <svg
+          class="size-7"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          ><path d="m5 13 4 4L19 7" /></svg
+        >
+      </span>
+
+      <h1 class="mt-5 text-2xl font-semibold tracking-tight">Thank you!</h1>
+      <p class="mt-2 text-sm text-fg-muted">
+        Your testimonial has been received. It will appear once it's reviewed.
+      </p>
+
+      <div class="mt-7 card card-pad text-left">
+        <p class="text-[13px] font-medium">What happens next</p>
+        <ol class="mt-3 space-y-2.5 text-[13px] text-fg-muted">
+          <li class="flex gap-2.5">
+            <span class="nums flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-muted text-[11px] font-semibold text-fg-muted">1</span>
+            We review your submission.
+          </li>
+          <li class="flex gap-2.5">
+            <span class="nums flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-muted text-[11px] font-semibold text-fg-muted">2</span>
+            If approved, it's published on the site.
+          </li>
+        </ol>
+      </div>
+
+      <a href={`/s/${slug}`} class="btn btn-secondary mt-6 w-full">Submit another</a>
+    </main>
+  </body>
 </html>

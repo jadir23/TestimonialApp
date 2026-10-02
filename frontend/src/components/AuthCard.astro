@@ -1,0 +1,24 @@
+---
+/** Centred auth card with a wordmark. Used by login/register/reset pages. */
+import Icon from './Icon.astro';
+
+interface Props {
+  title: string;
+  subtitle?: string;
+}
+const { title, subtitle } = Astro.props;
+---
+
+<div class="w-full">
+  <div class="mb-8 flex flex-col items-center text-center">
+    <span
+      class="flex size-11 items-center justify-center rounded-xl bg-brand text-brand-fg shadow-card"
+      aria-hidden="true"
+    >
+      <Icon name="quote" class="size-5" />
+    </span>
+    <h1 class="mt-4 text-2xl font-semibold tracking-tight">{title}</h1>
+    {subtitle && <p class="mt-1.5 text-sm text-fg-muted">{subtitle}</p>}
+  </div>
+  <slot />
+</div>

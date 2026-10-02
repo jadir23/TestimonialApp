@@ -58,14 +58,25 @@ docker compose exec odoo odoo -d postgres -i testimonial_saas --without-demo=all
 
 ## Deploy to a VPS
 
+Accessed by IP (no domain, no TLS):
+
 ```bash
 git clone <repo> && cd <repo>
-cp .env.example .env   # set POSTGRES_PASSWORD, PUBLIC_APP_URL, STRIPE_* (see below)
+cp .env.example .env   # set POSTGRES_PASSWORD, PUBLIC_APP_URL=http://<server-ip>:4321, STRIPE_*
 docker compose up --build -d
-docker compose exec odoo odoo -d postgres -i testimonial_saas --without-demo=all --stop-after-init
+# install the addon (once), then restart odoo so it registers its routes:
+set -a; . ./.env; set +a
+docker compose exec -e PGPASSWORD="$POSTGRES_PASSWORD" odoo \
+  odoo -r /etc/odoo/odoo.conf -d postgres --db_host=db --db_user="$POSTGRES_USER" \
+  -i testimonial_saas --without-demo=all --stop-after-init
+docker compose restart odoo
 ```
 
-Put Caddy/Nginx in front of `:4321` for TLS. Keep `:8069` internal — browsers only ever talk to the Astro app. Stripe keys (`STRIPE_SECRET_KEY`, `STRIPE_PRICE_PRO`, `STRIPE_WEBHOOK_SECRET`) go in `.env` and reach only the Odoo container. Webhook URL in Stripe Dashboard: `https://<your-host>/api/stripe/webhook`; local test: `stripe listen --forward-to localhost:8069/api/stripe/webhook`.
+App: `http://<server-ip>:4321`. Only `:4321` is published; Odoo (`:8069`) stays on the internal Docker network — browsers only ever talk to the Astro app. `backend/odoo.conf` pins `db_name` so Odoo does not try to pick a database from the `Host` header, and deliberately omits `db_host`/`db_user`/`db_password` so the image entrypoint injects them from `POSTGRES_*`.
+
+Note: `docker compose exec odoo ...` bypasses the image entrypoint, which is why the DB flags above must be passed explicitly.
+
+With a domain + TLS, put Caddy/Nginx in front of `:4321` and set `PUBLIC_APP_URL=https://app.example.com`. Stripe keys (`STRIPE_SECRET_KEY`, `STRIPE_PRICE_PRO`, `STRIPE_WEBHOOK_SECRET`) go in `.env` and reach only the Odoo container. Webhook URL in Stripe Dashboard: `https://<your-host>/api/stripe/webhook`; local test: `stripe listen --forward-to localhost:8069/api/stripe/webhook`.
 
 ## Configuration
 
